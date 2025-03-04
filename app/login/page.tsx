@@ -138,7 +138,7 @@ export default function LoginPage() {
         </form>
 
         {/* Panel de debug */}
-        {process.env.NODE_ENV === "development" && (
+        {/* {process.env.NODE_ENV === "development" && (
           <div className="mt-4 p-4 bg-gray-100 rounded-md">
             <h3 className="text-sm font-semibold mb-2">Debug Info:</h3>
             <pre className="text-xs overflow-auto">
@@ -153,7 +153,7 @@ export default function LoginPage() {
               )}
             </pre>
           </div>
-        )}
+        )} */}
       </div>
     </div>
   )
