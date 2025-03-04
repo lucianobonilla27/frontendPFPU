@@ -406,7 +406,8 @@ const UserManagement = () => {
 
     // Guardar las materias seleccionadas del año actual antes de cambiar
     if (selectedAnio) {
-      const materiasDelAnioActual = materias.filter((m) => selectedSubjects.some((s) => s.id_materia === m.id_materia))
+      // Filtrar solo las materias que pertenecen al año actual y están seleccionadas
+      const materiasDelAnioActual = selectedSubjects.filter((m) => m.id_anio === selectedAnio)
 
       setMateriasSeleccionadasPorAnio((prev) => ({
         ...prev,
@@ -435,8 +436,22 @@ const UserManagement = () => {
       (materia, index, self) => index === self.findIndex((m) => m.id_materia === materia.id_materia),
     )
 
-    setSelectedSubjects(materiasUnicas)
-  }, [selectedAnio, materiasSeleccionadasPorAnio, selectedSubjects])
+    // Verificar si realmente hay cambios antes de actualizar el estado
+    const materiasIguales =
+      materiasUnicas.length === selectedSubjects.length &&
+      materiasUnicas.every((m1) => selectedSubjects.some((m2) => m2.id_materia === m1.id_materia))
+
+    if (!materiasIguales) {
+      setSelectedSubjects(materiasUnicas)
+    }
+  }, [
+    selectedAnio,
+    materiasSeleccionadasPorAnio,
+    selectedSubjects,
+    selectedSubjects.filter,
+    selectedSubjects.length,
+    selectedSubjects.some,
+  ])
 
   // Función para cargar las materias de un docente
   const loadDocenteMaterias = useCallback(
@@ -893,7 +908,7 @@ const UserManagement = () => {
         } else if (activeTab === "teachers") {
           endpoint = "https://localhost:7213/DeleteDocente"
         } else if (activeTab === "admins") {
-          endpoint = "https://localhost:7213/DeleteAdministrador"
+          endpoint = "https://localhost:7213/DeleteAdministrativo"
         }
 
         await makeRequest("DELETE", `${endpoint}?id_usuario=${id_usuario}`)
@@ -920,43 +935,29 @@ const UserManagement = () => {
 
   // Función para manejar la selección de materias
   const handleMateriaChange = (materia: Materia) => {
-    setSelectedSubjects((prev) => {
-      // Verificar si la materia ya está seleccionada
-      const isSelected = prev.some((m) => m.id_materia === materia.id_materia)
+    // Verificar si la materia ya está seleccionada
+    const isSelected = selectedSubjects.some((m) => m.id_materia === materia.id_materia)
 
-      if (isSelected) {
-        // Si ya está seleccionada, la quitamos
-        return prev.filter((m) => m.id_materia !== materia.id_materia)
-      } else {
-        // Si no está seleccionada, la agregamos
-        return [...prev, materia]
-      }
-    })
+    let nuevasMateriasSeleccionadas: Materia[]
+
+    if (isSelected) {
+      // Si ya está seleccionada, la quitamos
+      nuevasMateriasSeleccionadas = selectedSubjects.filter((m) => m.id_materia !== materia.id_materia)
+    } else {
+      // Si no está seleccionada, la agregamos
+      nuevasMateriasSeleccionadas = [...selectedSubjects, materia]
+    }
+
+    setSelectedSubjects(nuevasMateriasSeleccionadas)
 
     // Actualizar también el estado de materias seleccionadas por año
-    if (selectedAnio) {
-      setMateriasSeleccionadasPorAnio((prev) => {
-        const materiasDelAnio = [...(prev[selectedAnio] || [])]
-        const isSelected = materiasDelAnio.some((m) => m.id_materia === materia.id_materia)
+    if (materia.id_anio === selectedAnio) {
+      const materiasDelAnioActual = nuevasMateriasSeleccionadas.filter((m) => m.id_anio === selectedAnio)
 
-        if (isSelected) {
-          // Si ya está seleccionada, la quitamos
-          return {
-            ...prev,
-            [selectedAnio]: materiasDelAnio.filter((m) => m.id_materia !== materia.id_materia),
-          }
-        } else {
-          // Si no está seleccionada y pertenece al año actual, la agregamos
-          if (materia.id_anio === selectedAnio) {
-            return {
-              ...prev,
-              [selectedAnio]: [...materiasDelAnio, materia],
-            }
-          }
-        }
-
-        return prev
-      })
+      setMateriasSeleccionadasPorAnio((prev) => ({
+        ...prev,
+        [selectedAnio]: materiasDelAnioActual,
+      }))
     }
   }
 
