@@ -1,8 +1,129 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import Navbar from "../../components/navbar"
 import { PlusCircle, Pencil, Trash2, AlertCircle, Loader2 } from "lucide-react"
+
+// Componente Modal extraído
+const Modal = ({ isOpen, onClose, children }) => {
+  if (!isOpen) return null
+
+  const handleModalClick = (e) => {
+    e.stopPropagation()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg w-full max-w-md" onClick={handleModalClick}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+// Componente de formulario para años
+const GradeForm = ({ isEditing, initialValue, onSubmit, onCancel, isSubmitting }) => {
+  const [inputValue, setInputValue] = useState(initialValue || "")
+  const inputRef = useRef(null)
+
+  // Enfocar el input cuando el componente se monta
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [])
+
+  // Actualizar el valor del input cuando cambia initialValue
+  useEffect(() => {
+    setInputValue(initialValue || "")
+  }, [initialValue])
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (inputValue.trim()) {
+      onSubmit(inputValue)
+    }
+  }
+
+  return (
+    <div className="p-6">
+      <h2 className="text-xl font-bold mb-4">{isEditing ? "Editar Año" : "Nuevo Año"}</h2>
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Año</label>
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder="Ej: 1ero"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            disabled={isSubmitting}
+            required
+          />
+        </div>
+        <div className="flex justify-end space-x-4 pt-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 border rounded-md hover:bg-gray-50"
+            disabled={isSubmitting}
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              "Guardar"
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// Componente de confirmación de eliminación
+const DeleteConfirmation = ({ grade, onConfirm, onCancel, isSubmitting }) => {
+  return (
+    <div className="p-6">
+      <div className="flex items-center space-x-3 mb-4">
+        <AlertCircle className="w-6 h-6 text-red-600" />
+        <h2 className="text-xl font-bold">Confirmar Eliminación</h2>
+      </div>
+      <p className="text-gray-600 mb-6">
+        ¿Estás seguro de que deseas eliminar {grade?.anio}? Esta acción no se puede deshacer.
+      </p>
+      <div className="flex justify-end space-x-4">
+        <button onClick={onCancel} className="px-4 py-2 border rounded-md hover:bg-gray-50" disabled={isSubmitting}>
+          Cancelar
+        </button>
+        <button
+          onClick={onConfirm}
+          className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Eliminando...
+            </>
+          ) : (
+            "Eliminar"
+          )}
+        </button>
+      </div>
+    </div>
+  )
+}
 
 const GradeManagement = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -12,11 +133,10 @@ const GradeManagement = () => {
   const [grades, setGrades] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [newGradeName, setNewGradeName] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Función para obtener todos los años
-  const fetchGrades = async () => {
+  const fetchGrades = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch("https://localhost:7213/GetAllAnios")
@@ -34,19 +154,15 @@ const GradeManagement = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   // Cargar años al montar el componente
   useEffect(() => {
     fetchGrades()
-  }, []) //Fixed: Added empty dependency array []
+  }, [fetchGrades])
 
   // Función para crear un nuevo año
-  const createGrade = async (e) => {
-    e.preventDefault()
-
-    if (!newGradeName.trim()) return
-
+  const createGrade = async (gradeName) => {
     try {
       setIsSubmitting(true)
       const response = await fetch("https://localhost:7213/PostAnio", {
@@ -54,7 +170,7 @@ const GradeManagement = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ anio: newGradeName }),
+        body: JSON.stringify({ anio: gradeName }),
       })
 
       if (!response.ok) {
@@ -64,9 +180,8 @@ const GradeManagement = () => {
       // Recargar la lista de años
       await fetchGrades()
 
-      // Cerrar el modal y limpiar el formulario
+      // Cerrar el modal
       setIsModalOpen(false)
-      setNewGradeName("")
     } catch (err) {
       console.error("Error creating grade:", err)
       setError("No se pudo crear el año. Por favor, intenta de nuevo.")
@@ -76,10 +191,8 @@ const GradeManagement = () => {
   }
 
   // Función para actualizar un año existente
-  const updateGrade = async (e) => {
-    e.preventDefault()
-
-    if (!newGradeName.trim()) return
+  const updateGrade = async (gradeName) => {
+    if (!editingGrade) return
 
     try {
       setIsSubmitting(true)
@@ -90,7 +203,7 @@ const GradeManagement = () => {
         },
         body: JSON.stringify({
           id_anio: editingGrade.id_anio,
-          anio: newGradeName,
+          anio: gradeName,
         }),
       })
 
@@ -103,7 +216,6 @@ const GradeManagement = () => {
 
       // Cerrar el modal y limpiar el formulario
       setIsModalOpen(false)
-      setNewGradeName("")
       setEditingGrade(null)
     } catch (err) {
       console.error("Error updating grade:", err)
@@ -143,7 +255,6 @@ const GradeManagement = () => {
 
   const handleEdit = (grade) => {
     setEditingGrade(grade)
-    setNewGradeName(grade.anio)
     setIsModalOpen(true)
   }
 
@@ -152,24 +263,26 @@ const GradeManagement = () => {
     setIsDeleteModalOpen(true)
   }
 
-  const Modal = ({ isOpen, onClose, children }) => {
-    if (!isOpen) return null
-
-    // Evitamos que los clics en el modal se propaguen al fondo
-    const handleModalClick = (e) => {
-      e.stopPropagation()
+  const handleFormSubmit = (gradeName) => {
+    if (editingGrade) {
+      updateGrade(gradeName)
+    } else {
+      createGrade(gradeName)
     }
+  }
 
-    return (
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-        onClick={() => !isSubmitting && onClose()}
-      >
-        <div className="bg-white rounded-lg w-full max-w-md" onClick={handleModalClick}>
-          {children}
-        </div>
-      </div>
-    )
+  const closeFormModal = () => {
+    if (!isSubmitting) {
+      setIsModalOpen(false)
+      setEditingGrade(null)
+    }
+  }
+
+  const closeDeleteModal = () => {
+    if (!isSubmitting) {
+      setIsDeleteModalOpen(false)
+      setSelectedGradeForDelete(null)
+    }
   }
 
   return (
@@ -183,7 +296,6 @@ const GradeManagement = () => {
               <button
                 onClick={() => {
                   setEditingGrade(null)
-                  setNewGradeName("")
                   setIsModalOpen(true)
                 }}
                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 w-full sm:w-auto justify-center"
@@ -249,87 +361,24 @@ const GradeManagement = () => {
         </div>
 
         {/* Modal para crear/editar año */}
-        <Modal isOpen={isModalOpen} onClose={() => !isSubmitting && setIsModalOpen(false)}>
-          <div className="p-6">
-            <h2 className="text-xl font-bold mb-4">{editingGrade ? "Editar Año" : "Nuevo Año"}</h2>
-            <form className="space-y-4" onSubmit={editingGrade ? updateGrade : createGrade}>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Año</label>
-                <input
-                  type="text"
-                  value={newGradeName}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    setNewGradeName(value)
-                  }}
-                  placeholder="Ej: 1ero"
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                  disabled={isSubmitting}
-                  required
-                />
-              </div>
-              <div className="flex justify-end space-x-4 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border rounded-md hover:bg-gray-50"
-                  disabled={isSubmitting}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Guardando...
-                    </>
-                  ) : (
-                    "Guardar"
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
+        <Modal isOpen={isModalOpen} onClose={closeFormModal}>
+          <GradeForm
+            isEditing={!!editingGrade}
+            initialValue={editingGrade?.anio || ""}
+            onSubmit={handleFormSubmit}
+            onCancel={closeFormModal}
+            isSubmitting={isSubmitting}
+          />
         </Modal>
 
         {/* Modal de confirmación de eliminación */}
-        <Modal isOpen={isDeleteModalOpen} onClose={() => !isSubmitting && setIsDeleteModalOpen(false)}>
-          <div className="p-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <AlertCircle className="w-6 h-6 text-red-600" />
-              <h2 className="text-xl font-bold">Confirmar Eliminación</h2>
-            </div>
-            <p className="text-gray-600 mb-6">
-              ¿Estás seguro de que deseas eliminar {selectedGradeForDelete?.anio}? Esta acción no se puede deshacer.
-            </p>
-            <div className="flex justify-end space-x-4">
-              <button
-                onClick={() => setIsDeleteModalOpen(false)}
-                className="px-4 py-2 border rounded-md hover:bg-gray-50"
-                disabled={isSubmitting}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={deleteGrade}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Eliminando...
-                  </>
-                ) : (
-                  "Eliminar"
-                )}
-              </button>
-            </div>
-          </div>
+        <Modal isOpen={isDeleteModalOpen} onClose={closeDeleteModal}>
+          <DeleteConfirmation
+            grade={selectedGradeForDelete}
+            onConfirm={deleteGrade}
+            onCancel={closeDeleteModal}
+            isSubmitting={isSubmitting}
+          />
         </Modal>
       </div>
     </div>
