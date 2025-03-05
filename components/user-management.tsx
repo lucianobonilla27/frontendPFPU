@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Pencil, Trash2, PlusCircle } from "lucide-react"
 
 // Definición de tipos según la estructura real de la API
@@ -98,6 +98,835 @@ interface NuevoAlumno {
   matricula: number
   fecha_nac: string
   id_curso: number
+}
+
+// Componente de formulario para alumnos
+const AlumnoForm = ({
+  editingUser,
+  initialValues,
+  onSubmit,
+  onCancel,
+  isLoading,
+  error,
+  cursos,
+  fetchingCursos,
+}: {
+  editingUser: Alumno | null
+  initialValues: NuevoAlumno
+  onSubmit: (formData: NuevoAlumno) => void
+  onCancel: () => void
+  isLoading: boolean
+  error: string | null
+  cursos: Curso[]
+  fetchingCursos: boolean
+}) => {
+  const [formValues, setFormValues] = useState<NuevoAlumno>(initialValues)
+  const nombreInputRef = useRef<HTMLInputElement>(null)
+
+  // Enfocar el input cuando el componente se monta
+  useEffect(() => {
+    if (nombreInputRef.current) {
+      nombreInputRef.current.focus()
+    }
+  }, [])
+
+  // Actualizar valores cuando cambian los initialValues
+  useEffect(() => {
+    setFormValues(initialValues)
+  }, [initialValues])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+
+    setFormValues((prev) => {
+      const updatedValues = { ...prev }
+
+      if (name === "dni" || name === "id_curso" || name === "matricula") {
+        updatedValues[name] = Number(value)
+      } else if (name === "fecha_nac") {
+        updatedValues[name] = new Date(value).toISOString()
+      } else {
+        updatedValues[name] = value
+      }
+
+      return updatedValues
+    })
+  }
+
+  const generateRandomPassword = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()"
+    let password = ""
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+
+    setFormValues((prev) => ({
+      ...prev,
+      contrasenia: password,
+    }))
+  }
+
+  const generateRandomMatricula = () => {
+    const matricula = Math.floor(1000 + Math.random() * 9000)
+
+    setFormValues((prev) => ({
+      ...prev,
+      matricula,
+    }))
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSubmit(formValues)
+  }
+
+  // Función para obtener el año escolar a partir del id_anio
+  const getAnioEscolar = (id_anio: number): string => {
+    const anios = ["1°", "2°", "3°", "4°", "5°", "6°"]
+    return anios[id_anio - 1] || `Año ${id_anio}`
+  }
+
+  return (
+    <form className="space-y-4" onSubmit={handleSubmit}>
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Nombre(s)</label>
+          <input
+            ref={nombreInputRef}
+            type="text"
+            name="nombre"
+            value={formValues.nombre}
+            onChange={handleInputChange}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Apellido(s)</label>
+          <input
+            type="text"
+            name="apellido"
+            value={formValues.apellido}
+            onChange={handleInputChange}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            required
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700">DNI</label>
+        <input
+          type="number"
+          name="dni"
+          value={formValues.dni || ""}
+          onChange={handleInputChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Dirección</label>
+        <input
+          type="text"
+          name="direccion"
+          value={formValues.direccion}
+          onChange={handleInputChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Teléfono</label>
+        <input
+          type="tel"
+          name="telefono"
+          value={formValues.telefono || ""}
+          onChange={handleInputChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Fecha de Nacimiento</label>
+        <input
+          type="date"
+          name="fecha_nac"
+          value={formValues.fecha_nac.split("T")[0]}
+          onChange={handleInputChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Correo Electrónico</label>
+        <input
+          type="email"
+          name="correo"
+          value={formValues.correo}
+          onChange={handleInputChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          required
+        />
+      </div>
+      {!editingUser && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Contraseña</label>
+          <div className="flex space-x-2">
+            <input
+              type="text"
+              name="contrasenia"
+              value={formValues.contrasenia}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+              required
+            />
+            <button
+              type="button"
+              onClick={generateRandomPassword}
+              className="mt-1 px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              Generar
+            </button>
+          </div>
+        </div>
+      )}
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Matrícula</label>
+        <div className="flex space-x-2">
+          <input
+            type="number"
+            name="matricula"
+            value={formValues.matricula || ""}
+            onChange={handleInputChange}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            required
+          />
+          {!editingUser && (
+            <button
+              type="button"
+              onClick={generateRandomMatricula}
+              className="mt-1 px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              Generar
+            </button>
+          )}
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Curso</label>
+        <select
+          name="id_curso"
+          value={formValues.id_curso || ""}
+          onChange={handleInputChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          required
+        >
+          <option value="">Seleccionar curso</option>
+          {fetchingCursos ? (
+            <option disabled>Cargando cursos...</option>
+          ) : (
+            cursos.map((curso) => (
+              <option key={curso.id_curso} value={curso.id_curso}>
+                {`${getAnioEscolar(curso.id_anio)} ${curso.division}`}
+              </option>
+            ))
+          )}
+        </select>
+      </div>
+      <div className="flex justify-end space-x-4">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-4 py-2 border rounded-md hover:bg-gray-50"
+          disabled={isLoading}
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400"
+          disabled={isLoading}
+        >
+          {isLoading ? "Guardando..." : editingUser ? "Actualizar" : "Guardar"}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+// Componente de formulario para docentes
+const TeacherForm = ({
+  editingUser,
+  initialValues,
+  onSubmit,
+  onCancel,
+  isLoading,
+  error,
+  anios,
+  fetchingAnios,
+  materias,
+  fetchingMaterias,
+  selectedAnio,
+  setSelectedAnio,
+  selectedSubjects,
+  setSelectedSubjects,
+  materiasDocente,
+  fetchingMateriasDocente,
+  noMateriasAvailable,
+  materiasSeleccionadasPorAnio,
+  setMateriasSeleccionadasPorAnio,
+}: {
+  editingUser: Teacher | null
+  initialValues: NuevoDocente
+  onSubmit: (formData: NuevoDocente, selectedSubjects: Materia[]) => void
+  onCancel: () => void
+  isLoading: boolean
+  error: string | null
+  anios: Anio[]
+  fetchingAnios: boolean
+  materias: Materia[]
+  fetchingMaterias: boolean
+  selectedAnio: number | null
+  setSelectedAnio: (anioId: number | null) => void
+  selectedSubjects: Materia[]
+  setSelectedSubjects: (materias: Materia[]) => void
+  materiasDocente: Materia[]
+  fetchingMateriasDocente: boolean
+  noMateriasAvailable: boolean
+  materiasSeleccionadasPorAnio: { [key: number]: Materia[] }
+  setMateriasSeleccionadasPorAnio: (value: { [key: number]: Materia[] }) => void
+}) => {
+  const [formValues, setFormValues] = useState<NuevoDocente>(initialValues)
+  const nombreInputRef = useRef<HTMLInputElement>(null)
+
+  // Enfocar el input cuando el componente se monta
+  useEffect(() => {
+    if (nombreInputRef.current) {
+      nombreInputRef.current.focus()
+    }
+  }, [])
+
+  // Actualizar valores cuando cambian los initialValues
+  useEffect(() => {
+    setFormValues(initialValues)
+  }, [initialValues])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+
+    setFormValues((prev) => ({
+      ...prev,
+      [name]: name === "dni" ? Number(value) : value,
+    }))
+  }
+
+  const generateRandomPassword = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()"
+    let password = ""
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+
+    setFormValues((prev) => ({
+      ...prev,
+      contrasenia: password,
+    }))
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSubmit(formValues, selectedSubjects)
+  }
+
+  // Función para manejar cambio de año seleccionado
+  const handleAnioChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const anioId = Number(e.target.value)
+
+    // Guardar las materias seleccionadas del año actual antes de cambiar
+    if (selectedAnio) {
+      // Filtrar solo las materias que pertenecen al año actual y están seleccionadas
+      const materiasDelAnioActual = selectedSubjects.filter((m) => m.id_anio === selectedAnio)
+
+      setMateriasSeleccionadasPorAnio((prev) => ({
+        ...prev,
+        [selectedAnio]: materiasDelAnioActual,
+      }))
+    }
+
+    // Cambiar el año seleccionado
+    setSelectedAnio(anioId)
+  }
+
+  // Función para manejar la selección de materias
+  const handleMateriaChange = (materia: Materia) => {
+    // Verificar si la materia ya está seleccionada
+    const isSelected = selectedSubjects.some((m) => m.id_materia === materia.id_materia)
+
+    let nuevasMateriasSeleccionadas: Materia[]
+
+    if (isSelected) {
+      // Si ya está seleccionada, la quitamos
+      nuevasMateriasSeleccionadas = selectedSubjects.filter((m) => m.id_materia !== materia.id_materia)
+    } else {
+      // Si no está seleccionada, la agregamos
+      nuevasMateriasSeleccionadas = [...selectedSubjects, materia]
+    }
+
+    setSelectedSubjects(nuevasMateriasSeleccionadas)
+
+    // Actualizar también el estado de materias seleccionadas por año
+    if (materia.id_anio === selectedAnio) {
+      const materiasDelAnioActual = nuevasMateriasSeleccionadas.filter((m) => m.id_anio === selectedAnio)
+
+      setMateriasSeleccionadasPorAnio((prev) => ({
+        ...prev,
+        [selectedAnio]: materiasDelAnioActual,
+      }))
+    }
+  }
+
+  // Función para obtener el nombre del año a partir del id_anio
+  const getAnioName = (id_anio: number): string => {
+    const anio = anios.find((a) => a.id_anio === id_anio)
+    return anio ? anio.anio : `Año ${id_anio}`
+  }
+
+  return (
+    <form className="space-y-4" onSubmit={handleSubmit}>
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Nombre</label>
+          <input
+            ref={nombreInputRef}
+            type="text"
+            name="nombre"
+            value={formValues.nombre}
+            onChange={handleInputChange}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Apellido</label>
+          <input
+            type="text"
+            name="apellido"
+            value={formValues.apellido}
+            onChange={handleInputChange}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            required
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700">DNI</label>
+        <input
+          type="number"
+          name="dni"
+          value={formValues.dni || ""}
+          onChange={handleInputChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Teléfono</label>
+        <input
+          type="tel"
+          name="telefono"
+          value={formValues.telefono}
+          onChange={handleInputChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Correo Electrónico</label>
+        <input
+          type="email"
+          name="correo"
+          value={formValues.correo}
+          onChange={handleInputChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          required
+        />
+      </div>
+      {!editingUser && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Contraseña</label>
+          <div className="flex space-x-2">
+            <input
+              type="text"
+              name="contrasenia"
+              value={formValues.contrasenia}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+              required
+            />
+            <button
+              type="button"
+              onClick={generateRandomPassword}
+              className="mt-1 px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              Generar
+            </button>
+          </div>
+        </div>
+      )}
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Seleccionar Año</label>
+        <select
+          value={selectedAnio || ""}
+          onChange={handleAnioChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          required={!editingUser}
+        >
+          <option value="">Seleccionar año</option>
+          {fetchingAnios ? (
+            <option disabled>Cargando años...</option>
+          ) : (
+            anios.map((anio) => (
+              <option key={anio.id_anio} value={anio.id_anio}>
+                {anio.anio}
+              </option>
+            ))
+          )}
+        </select>
+      </div>
+
+      {/* Sección de materias */}
+      {selectedAnio && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Asignar Materias</label>
+          {fetchingMaterias || fetchingMateriasDocente ? (
+            <div className="text-center py-2">
+              <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+              <p className="mt-1 text-sm text-gray-600">Cargando materias...</p>
+            </div>
+          ) : noMateriasAvailable ? (
+            <div className="bg-yellow-50 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative">
+              <p className="text-sm">No hay materias disponibles para este año.</p>
+              <p className="text-sm mt-2">
+                Por favor, seleccione otro año o contacte al administrador para agregar materias.
+              </p>
+            </div>
+          ) : (
+            <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
+              <div className="space-y-2">
+                {/* Mostrar las materias del docente de otros años */}
+                {editingUser && materiasDocente.filter((m) => m.id_anio !== selectedAnio).length > 0 && (
+                  <div className="mb-2 pb-2 border-b">
+                    <p className="text-sm font-medium text-gray-700 mb-1">Materias asignadas de otros años:</p>
+                    {materiasDocente
+                      .filter((m) => m.id_anio !== selectedAnio)
+                      .map((materia) => (
+                        <div key={materia.id_materia} className="flex items-center space-x-2 p-1">
+                          <input
+                            type="checkbox"
+                            checked={selectedSubjects.some((m) => m.id_materia === materia.id_materia)}
+                            onChange={() => handleMateriaChange(materia)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">
+                            {materia.materia}{" "}
+                            <span className="text-xs text-gray-500">({getAnioName(materia.id_anio)})</span>
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                )}
+
+                {/* Mostrar las materias del año seleccionado */}
+                <p className="text-sm font-medium text-gray-700 mb-1">Materias de {getAnioName(selectedAnio)}:</p>
+                {materias.length === 0 ? (
+                  <p className="text-sm text-gray-500">No hay materias disponibles para este año.</p>
+                ) : (
+                  materias.map((materia) => (
+                    <label
+                      key={materia.id_materia}
+                      className="flex items-center space-x-2 p-1 hover:bg-gray-50 rounded cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        value={materia.id_materia}
+                        checked={selectedSubjects.some((m) => m.id_materia === materia.id_materia)}
+                        onChange={() => handleMateriaChange(materia)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">{materia.materia}</span>
+                    </label>
+                  ))
+                )}
+
+                {/* Mostrar las materias del docente del año seleccionado */}
+                {editingUser && materiasDocente.filter((m) => m.id_anio === selectedAnio).length > 0 && (
+                  <div className="mt-2 pt-2 border-t">
+                    <p className="text-sm font-medium text-gray-700 mb-1">Materias ya asignadas:</p>
+                    {materiasDocente
+                      .filter((m) => m.id_anio === selectedAnio)
+                      .map((materia) => (
+                        <label
+                          key={materia.id_materia}
+                          className="flex items-center space-x-2 p-1 hover:bg-gray-50 rounded cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedSubjects.some((m) => m.id_materia === materia.id_materia)}
+                            onChange={() => handleMateriaChange(materia)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">{materia.materia}</span>
+                        </label>
+                      ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {selectedSubjects.length > 0 && (
+            <div className="mt-2">
+              <div className="text-sm text-gray-500">Materias seleccionadas: {selectedSubjects.length}</div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {selectedSubjects.map((materia) => (
+                  <span
+                    key={materia.id_materia}
+                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                  >
+                    {materia.materia}
+                    {materia.id_anio !== selectedAnio && (
+                      <span className="ml-1 text-xs text-blue-600">({getAnioName(materia.id_anio)})</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="flex justify-end space-x-4">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-4 py-2 border rounded-md hover:bg-gray-50"
+          disabled={isLoading}
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400"
+          disabled={isLoading}
+        >
+          {isLoading ? "Guardando..." : editingUser ? "Actualizar" : "Guardar"}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+// Componente de formulario para administrativos
+const AdminForm = ({
+  editingUser,
+  initialValues,
+  onSubmit,
+  onCancel,
+  isLoading,
+  error,
+}: {
+  editingUser: Admin | null
+  initialValues: Admin
+  onSubmit: (formData: Admin) => void
+  onCancel: () => void
+  isLoading: boolean
+  error: string | null
+}) => {
+  const [formValues, setFormValues] = useState<Admin>(initialValues)
+  const nombreInputRef = useRef<HTMLInputElement>(null)
+
+  // Enfocar el input cuando el componente se monta
+  useEffect(() => {
+    if (nombreInputRef.current) {
+      nombreInputRef.current.focus()
+    }
+  }, [])
+
+  // Actualizar valores cuando cambian los initialValues
+  useEffect(() => {
+    setFormValues(initialValues)
+  }, [initialValues])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+
+    setFormValues((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  const generateRandomPassword = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()"
+    let password = ""
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+
+    setFormValues((prev) => ({
+      ...prev,
+      contrasenia: password,
+    }))
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSubmit(formValues)
+  }
+
+  return (
+    <form className="space-y-4" onSubmit={handleSubmit}>
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Nombre</label>
+          <input
+            ref={nombreInputRef}
+            type="text"
+            name="nombre"
+            value={formValues.nombre}
+            onChange={handleInputChange}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Apellido</label>
+          <input
+            type="text"
+            name="apellido"
+            value={formValues.apellido}
+            onChange={handleInputChange}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            required
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700">DNI</label>
+        <input
+          type="text"
+          name="dni"
+          value={formValues.dni}
+          onChange={handleInputChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Teléfono</label>
+        <input
+          type="tel"
+          name="telefono"
+          value={formValues.telefono}
+          onChange={handleInputChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Correo Electrónico</label>
+        <input
+          type="email"
+          name="correo"
+          value={formValues.correo}
+          onChange={handleInputChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          required
+        />
+      </div>
+      {!editingUser && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Contraseña</label>
+          <div className="flex space-x-2">
+            <input
+              type="text"
+              name="contrasenia"
+              value={formValues.contrasenia}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+              required
+            />
+            <button
+              type="button"
+              onClick={generateRandomPassword}
+              className="mt-1 px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              Generar
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="flex justify-end space-x-4">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-4 py-2 border rounded-md hover:bg-gray-50"
+          disabled={isLoading}
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400"
+          disabled={isLoading}
+        >
+          {isLoading ? "Guardando..." : editingUser ? "Actualizar" : "Guardar"}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+// Componente Modal
+const Modal = ({
+  isOpen,
+  onClose,
+  children,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  children: React.ReactNode
+}) => {
+  if (!isOpen) return null
+
+  // Evitamos que los clics en el modal se propaguen al fondo
+  const handleModalClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={handleModalClick}>
+        {children}
+      </div>
+    </div>
+  )
 }
 
 const UserManagement = () => {
@@ -338,87 +1167,6 @@ const UserManagement = () => {
     fetchAdministrativos()
   }, [makeRequest])
 
-  // Función para manejar cambios en el formulario de alumno
-  const handleAlumnoInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-
-    if (editingUser && activeTab === "students") {
-      const updatedUser = { ...editingUser } as Alumno
-
-      if (name === "dni" || name === "id_curso" || name === "matricula") {
-        updatedUser[name] = Number(value)
-      } else if (name === "fecha_nac") {
-        updatedUser[name] = new Date(value).toISOString()
-      } else {
-        updatedUser[name] = value
-      }
-
-      setEditingUser(updatedUser)
-    } else {
-      setNuevoAlumno((prev) => {
-        const updatedAlumno = { ...prev }
-
-        if (name === "dni" || name === "id_curso" || name === "matricula") {
-          updatedAlumno[name] = Number(value)
-        } else if (name === "fecha_nac") {
-          updatedAlumno[name] = new Date(value).toISOString()
-        } else {
-          updatedAlumno[name] = value
-        }
-
-        return updatedAlumno
-      })
-    }
-  }
-
-  // Función para manejar cambios en el formulario de docente
-  const handleDocenteInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-
-    if (editingUser && activeTab === "teachers") {
-      const updatedUser = { ...editingUser } as Teacher
-      updatedUser[name] = name === "dni" ? Number(value) : value
-      setEditingUser(updatedUser)
-    } else {
-      setNuevoDocente((prev) => ({
-        ...prev,
-        [name]: name === "dni" ? Number(value) : value,
-      }))
-    }
-  }
-
-  // Agregar una nueva función para manejar cambios en el formulario de administrador
-  const handleAdminInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-
-    if (editingUser && activeTab === "admins") {
-      const updatedUser = { ...editingUser } as Admin
-      updatedUser[name] = value
-      setEditingUser(updatedUser)
-    } else {
-      setNuevoAdmin({ ...nuevoAdmin, [name]: value })
-    }
-  }
-
-  // Función para manejar cambio de año seleccionado
-  const handleAnioChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const anioId = Number(e.target.value)
-
-    // Guardar las materias seleccionadas del año actual antes de cambiar
-    if (selectedAnio) {
-      // Filtrar solo las materias que pertenecen al año actual y están seleccionadas
-      const materiasDelAnioActual = selectedSubjects.filter((m) => m.id_anio === selectedAnio)
-
-      setMateriasSeleccionadasPorAnio((prev) => ({
-        ...prev,
-        [selectedAnio]: materiasDelAnioActual,
-      }))
-    }
-
-    // Cambiar el año seleccionado
-    setSelectedAnio(anioId)
-  }
-
   // Efecto para actualizar las materias seleccionadas cuando cambia el año
   useEffect(() => {
     if (!selectedAnio) return
@@ -444,14 +1192,7 @@ const UserManagement = () => {
     if (!materiasIguales) {
       setSelectedSubjects(materiasUnicas)
     }
-  }, [
-    selectedAnio,
-    materiasSeleccionadasPorAnio,
-    selectedSubjects,
-    selectedSubjects.filter,
-    selectedSubjects.length,
-    selectedSubjects.some,
-  ])
+  }, [selectedAnio, materiasSeleccionadasPorAnio, selectedSubjects])
 
   // Función para cargar las materias de un docente
   const loadDocenteMaterias = useCallback(
@@ -528,17 +1269,15 @@ const UserManagement = () => {
   }
 
   // Agregar función para crear un nuevo administrador
-  const handleCreateAdmin = async (e: React.FormEvent) => {
-    e.preventDefault()
-
+  const handleCreateAdmin = async (adminData: Admin) => {
     try {
       setIsLoading(true)
       setError(null)
 
-      console.log("Enviando datos de nuevo administrador:", nuevoAdmin)
+      console.log("Enviando datos de nuevo administrador:", adminData)
 
       // Crear el administrador
-      await makeRequest("POST", "https://localhost:7213/PostAdministrador", nuevoAdmin)
+      await makeRequest("POST", "https://localhost:7213/PostAdministrador", adminData)
 
       // Si todo salió bien, cerrar el modal y limpiar el formulario
       handleCloseModal()
@@ -555,18 +1294,14 @@ const UserManagement = () => {
   }
 
   // Agregar función para actualizar un administrador
-  const handleUpdateAdmin = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!editingUser) return
-
+  const handleUpdateAdmin = async (adminData: Admin) => {
     try {
       setIsLoading(true)
       setError(null)
 
-      console.log("Enviando datos de actualización de administrador:", editingUser)
+      console.log("Enviando datos de actualización de administrador:", adminData)
 
-      await makeRequest("PUT", "https://localhost:7213/UpdateAdministrador", editingUser)
+      await makeRequest("PUT", "https://localhost:7213/UpdateAdministrador", adminData)
 
       // Si todo salió bien, cerrar el modal y limpiar el formulario
       handleCloseModal()
@@ -583,18 +1318,14 @@ const UserManagement = () => {
   }
 
   // Función para actualizar un alumno
-  const handleUpdateAlumno = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!editingUser) return
-
+  const handleUpdateAlumno = async (alumnoData: NuevoAlumno) => {
     try {
       setIsLoading(true)
       setError(null)
 
-      console.log("Enviando datos de actualización de alumno:", editingUser)
+      console.log("Enviando datos de actualización de alumno:", alumnoData)
 
-      await makeRequest("PUT", "https://localhost:7213/UpdateAlumno", editingUser)
+      await makeRequest("PUT", "https://localhost:7213/UpdateAlumno", alumnoData)
 
       // Si todo salió bien, cerrar el modal y limpiar el formulario
       handleCloseModal()
@@ -611,34 +1342,30 @@ const UserManagement = () => {
   }
 
   // Función para actualizar un docente
-  const handleUpdateDocente = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!editingUser) return
-
+  const handleUpdateDocente = async (docenteData: NuevoDocente, materiasSeleccionadas: Materia[]) => {
     try {
       setIsLoading(true)
       setError(null)
 
-      console.log("Enviando datos de actualización de docente:", editingUser)
+      console.log("Enviando datos de actualización de docente:", docenteData)
 
       // Actualizar información del docente
-      await makeRequest("PUT", "https://localhost:7213/UpdateDocente", editingUser)
+      await makeRequest("PUT", "https://localhost:7213/UpdateDocente", docenteData)
 
       // Obtener las materias actuales del docente
       const materiasActuales = await makeRequest(
         "GET",
-        `https://localhost:7213/GetMateriasByDocente?id_docente=${editingUser.id_usuario}`,
+        `https://localhost:7213/GetMateriasByDocente?id_docente=${docenteData.id_usuario}`,
       )
 
       // Materias que están en selectedSubjects pero no en materiasActuales (agregar)
-      const materiasAAgregar = selectedSubjects.filter(
+      const materiasAAgregar = materiasSeleccionadas.filter(
         (selected) => !materiasActuales.some((actual: Materia) => actual.id_materia === selected.id_materia),
       )
 
       // Materias que están en materiasActuales pero no en selectedSubjects (quitar)
       const materiasAQuitar = materiasActuales.filter(
-        (actual: Materia) => !selectedSubjects.some((selected) => selected.id_materia === actual.id_materia),
+        (actual: Materia) => !materiasSeleccionadas.some((selected) => selected.id_materia === actual.id_materia),
       )
 
       console.log("Materias a agregar:", materiasAAgregar)
@@ -668,7 +1395,7 @@ const UserManagement = () => {
             id_materia: materia.id_materia,
             materia: materia.materia,
             id_anio: materia.id_anio,
-            id_docente: editingUser.id_usuario,
+            id_docente: docenteData.id_usuario,
           }
           console.log("Asignando materia:", materiaUpdate)
           await makeRequest("PUT", "https://localhost:7213/UpdateMateria", materiaUpdate)
@@ -693,17 +1420,15 @@ const UserManagement = () => {
   }
 
   // Función para crear un nuevo docente y asignar materias
-  const handleCreateDocente = async (e: React.FormEvent) => {
-    e.preventDefault()
-
+  const handleCreateDocente = async (docenteData: NuevoDocente, materiasSeleccionadas: Materia[]) => {
     try {
       setIsLoading(true)
       setError(null)
 
-      console.log("Enviando datos de nuevo docente:", nuevoDocente)
+      console.log("Enviando datos de nuevo docente:", docenteData)
 
       // Crear el docente
-      const docenteResponse = await makeRequest("POST", "https://localhost:7213/PostDocente", nuevoDocente)
+      const docenteResponse = await makeRequest("POST", "https://localhost:7213/PostDocente", docenteData)
       console.log("Respuesta de creación de docente:", docenteResponse)
 
       // Obtener el ID del docente creado
@@ -716,9 +1441,9 @@ const UserManagement = () => {
         const docentes = await makeRequest("GET", "https://localhost:7213/GetDocentes")
         const docenteCreado = docentes.find(
           (d: Teacher) =>
-            d.dni.toString() === nuevoDocente.dni.toString() &&
-            d.nombre === nuevoDocente.nombre &&
-            d.apellido === nuevoDocente.apellido,
+            d.dni.toString() === docenteData.dni.toString() &&
+            d.nombre === docenteData.nombre &&
+            d.apellido === docenteData.apellido,
         )
 
         if (!docenteCreado) {
@@ -731,11 +1456,14 @@ const UserManagement = () => {
       console.log("ID del docente creado:", docenteId)
 
       // Asignar materias al docente
-      if (selectedSubjects.length > 0 && docenteId) {
-        console.log(`Asignando ${selectedSubjects.length} materias al docente ID ${docenteId}:`, selectedSubjects)
+      if (materiasSeleccionadas.length > 0 && docenteId) {
+        console.log(
+          `Asignando ${materiasSeleccionadas.length} materias al docente ID ${docenteId}:`,
+          materiasSeleccionadas,
+        )
 
         // Actualizar cada materia con el id del docente una por una
-        for (const materia of selectedSubjects) {
+        for (const materia of materiasSeleccionadas) {
           try {
             const materiaUpdate = {
               id_materia: materia.id_materia,
@@ -772,53 +1500,54 @@ const UserManagement = () => {
     }
   }
 
-  // Actualizar la función handleSubmit para incluir administradores
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Función para crear un nuevo alumno
+  const handleCreateAlumno = async (alumnoData: NuevoAlumno) => {
+    try {
+      setIsLoading(true)
+      setError(null)
 
-    if (activeTab === "students") {
-      if (editingUser) {
-        await handleUpdateAlumno(e)
-      } else {
-        try {
-          setIsLoading(true)
-          setError(null)
+      console.log("Enviando datos de nuevo alumno:", alumnoData)
 
-          console.log("Enviando datos de nuevo alumno:", nuevoAlumno)
+      await makeRequest("POST", "https://localhost:7213/PostAlumno", alumnoData)
 
-          await makeRequest("POST", "https://localhost:7213/PostAlumno", nuevoAlumno)
+      // Si todo salió bien, cerrar el modal y limpiar el formulario
+      handleCloseModal()
 
-          // Si todo salió bien, cerrar el modal y limpiar el formulario
-          handleCloseModal()
-
-          // Recargar la lista de alumnos para ver el nuevo alumno
-          const alumnosActualizados = await makeRequest("GET", "https://localhost:7213/GetAlumnos")
-          setAlumnos(alumnosActualizados)
-        } catch (err) {
-          console.error("Error creating student:", err)
-          setError("Ocurrió un error al crear el alumno. Intenta nuevamente.")
-        } finally {
-          setIsLoading(false)
-        }
-      }
-    } else if (activeTab === "teachers") {
-      if (editingUser) {
-        await handleUpdateDocente(e)
-      } else {
-        await handleCreateDocente(e)
-      }
-    } else if (activeTab === "admins") {
-      if (editingUser) {
-        await handleUpdateAdmin(e)
-      } else {
-        await handleCreateAdmin(e)
-      }
-    } else {
-      console.log("La creación/edición de este tipo de usuario no está implementada aún")
+      // Recargar la lista de alumnos para ver el nuevo alumno
+      const alumnosActualizados = await makeRequest("GET", "https://localhost:7213/GetAlumnos")
+      setAlumnos(alumnosActualizados)
+    } catch (err) {
+      console.error("Error creating student:", err)
+      setError("Ocurrió un error al crear el alumno. Intenta nuevamente.")
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  // Actualizar handleCloseModal para incluir limpieza de administradores
+  // Manejar el envío del formulario según el tipo de usuario
+  const handleSubmit = (formData: any) => {
+    if (activeTab === "students") {
+      if (editingUser) {
+        handleUpdateAlumno(formData)
+      } else {
+        handleCreateAlumno(formData)
+      }
+    } else if (activeTab === "teachers") {
+      if (editingUser) {
+        handleUpdateDocente(formData, selectedSubjects)
+      } else {
+        handleCreateDocente(formData, selectedSubjects)
+      }
+    } else if (activeTab === "admins") {
+      if (editingUser) {
+        handleUpdateAdmin(formData)
+      } else {
+        handleCreateAdmin(formData)
+      }
+    }
+  }
+
+  // Función para cerrar el modal y limpiar estados
   const handleCloseModal = () => {
     setIsModalOpen(false)
     setSelectedSubjects([])
@@ -867,35 +1596,6 @@ const UserManagement = () => {
     setMateriasSeleccionadasPorAnio({})
   }
 
-  // Actualizar generateRandomPassword para incluir administradores
-  const generateRandomPassword = () => {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()"
-    let password = ""
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length))
-    }
-
-    if (activeTab === "students") {
-      setNuevoAlumno({ ...nuevoAlumno, contrasenia: password })
-    } else if (activeTab === "teachers") {
-      setNuevoDocente({ ...nuevoDocente, contrasenia: password })
-    } else if (activeTab === "admins") {
-      setNuevoAdmin({ ...nuevoAdmin, contrasenia: password })
-    }
-  }
-
-  // Función para generar una matrícula aleatoria
-  const generateRandomMatricula = () => {
-    const matricula = Math.floor(1000 + Math.random() * 9000)
-    setNuevoAlumno({ ...nuevoAlumno, matricula })
-  }
-
-  // Función para obtener el año escolar a partir del id_anio
-  const getAnioEscolar = (id_anio: number): string => {
-    const anios = ["1°", "2°", "3°", "4°", "5°", "6°"]
-    return anios[id_anio - 1] || `Año ${id_anio}`
-  }
-
   // Función para eliminar un usuario
   const handleDelete = async (id_usuario: number) => {
     if (window.confirm("¿Estás seguro de que quieres eliminar este usuario?")) {
@@ -908,7 +1608,7 @@ const UserManagement = () => {
         } else if (activeTab === "teachers") {
           endpoint = "https://localhost:7213/DeleteDocente"
         } else if (activeTab === "admins") {
-          endpoint = "https://localhost:7213/DeleteAdministrativo"
+          endpoint = "https://localhost:7213/DeleteAdministrador"
         }
 
         await makeRequest("DELETE", `${endpoint}?id_usuario=${id_usuario}`)
@@ -933,52 +1633,59 @@ const UserManagement = () => {
     }
   }
 
-  // Función para manejar la selección de materias
-  const handleMateriaChange = (materia: Materia) => {
-    // Verificar si la materia ya está seleccionada
-    const isSelected = selectedSubjects.some((m) => m.id_materia === materia.id_materia)
-
-    let nuevasMateriasSeleccionadas: Materia[]
-
-    if (isSelected) {
-      // Si ya está seleccionada, la quitamos
-      nuevasMateriasSeleccionadas = selectedSubjects.filter((m) => m.id_materia !== materia.id_materia)
-    } else {
-      // Si no está seleccionada, la agregamos
-      nuevasMateriasSeleccionadas = [...selectedSubjects, materia]
+  // Renderizar el formulario adecuado según el tipo de usuario activo
+  const renderForm = () => {
+    if (activeTab === "students") {
+      return (
+        <AlumnoForm
+          editingUser={editingUser as Alumno | null}
+          initialValues={editingUser ? (editingUser as Alumno) : nuevoAlumno}
+          onSubmit={handleSubmit}
+          onCancel={handleCloseModal}
+          isLoading={isLoading}
+          error={error}
+          cursos={cursos}
+          fetchingCursos={fetchingCursos}
+        />
+      )
+    } else if (activeTab === "teachers") {
+      return (
+        <TeacherForm
+          editingUser={editingUser as Teacher | null}
+          initialValues={editingUser ? (editingUser as Teacher) : nuevoDocente}
+          onSubmit={handleSubmit}
+          onCancel={handleCloseModal}
+          isLoading={isLoading}
+          error={error}
+          anios={anios}
+          fetchingAnios={fetchingAnios}
+          materias={materias}
+          fetchingMaterias={fetchingMaterias}
+          selectedAnio={selectedAnio}
+          setSelectedAnio={setSelectedAnio}
+          selectedSubjects={selectedSubjects}
+          setSelectedSubjects={setSelectedSubjects}
+          materiasDocente={materiasDocente}
+          fetchingMateriasDocente={fetchingMateriasDocente}
+          noMateriasAvailable={noMateriasAvailable}
+          materiasSeleccionadasPorAnio={materiasSeleccionadasPorAnio}
+          setMateriasSeleccionadasPorAnio={setMateriasSeleccionadasPorAnio}
+        />
+      )
+    } else if (activeTab === "admins") {
+      return (
+        <AdminForm
+          editingUser={editingUser as Admin | null}
+          initialValues={editingUser ? (editingUser as Admin) : nuevoAdmin}
+          onSubmit={handleSubmit}
+          onCancel={handleCloseModal}
+          isLoading={isLoading}
+          error={error}
+        />
+      )
     }
 
-    setSelectedSubjects(nuevasMateriasSeleccionadas)
-
-    // Actualizar también el estado de materias seleccionadas por año
-    if (materia.id_anio === selectedAnio) {
-      const materiasDelAnioActual = nuevasMateriasSeleccionadas.filter((m) => m.id_anio === selectedAnio)
-
-      setMateriasSeleccionadasPorAnio((prev) => ({
-        ...prev,
-        [selectedAnio]: materiasDelAnioActual,
-      }))
-    }
-  }
-
-  // Función para obtener el nombre del año a partir del id_anio
-  const getAnioName = (id_anio: number): string => {
-    const anio = anios.find((a) => a.id_anio === id_anio)
-    return anio ? anio.anio : `Año ${id_anio}`
-  }
-
-  const Modal = ({
-    isOpen,
-    onClose,
-    children,
-  }: { isOpen: boolean; onClose: () => void; children: React.ReactNode }) => {
-    if (!isOpen) return null
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">{children}</div>
-      </div>
-    )
+    return null
   }
 
   return (
@@ -1150,477 +1857,7 @@ const UserManagement = () => {
               ? `Editar ${activeTab === "students" ? "Alumno" : activeTab === "teachers" ? "Docente" : "Administrativo"}`
               : `Nuevo ${activeTab === "students" ? "Alumno" : activeTab === "teachers" ? "Docente" : "Administrativo"}`}
           </h2>
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-                <span className="block sm:inline">{error}</span>
-              </div>
-            )}
-
-            {activeTab === "students" ? (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Nombre(s)</label>
-                    <input
-                      type="text"
-                      name="nombre"
-                      value={editingUser ? (editingUser as Alumno).nombre : nuevoAlumno.nombre}
-                      onChange={handleAlumnoInputChange}
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Apellido(s)</label>
-                    <input
-                      type="text"
-                      name="apellido"
-                      value={editingUser ? (editingUser as Alumno).apellido : nuevoAlumno.apellido}
-                      onChange={handleAlumnoInputChange}
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                      required
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">DNI</label>
-                  <input
-                    type="number"
-                    name="dni"
-                    value={editingUser ? (editingUser as Alumno).dni : nuevoAlumno.dni || ""}
-                    onChange={handleAlumnoInputChange}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Dirección</label>
-                  <input
-                    type="text"
-                    name="direccion"
-                    value={editingUser ? (editingUser as Alumno).direccion : nuevoAlumno.direccion}
-                    onChange={handleAlumnoInputChange}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Teléfono</label>
-                  <input
-                    type="tel"
-                    name="telefono"
-                    value={editingUser ? (editingUser as Alumno).telefono || "" : nuevoAlumno.telefono}
-                    onChange={handleAlumnoInputChange}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Fecha de Nacimiento</label>
-                  <input
-                    type="date"
-                    name="fecha_nac"
-                    value={(editingUser ? (editingUser as Alumno).fecha_nac : nuevoAlumno.fecha_nac).split("T")[0]}
-                    onChange={handleAlumnoInputChange}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Correo Electrónico</label>
-                  <input
-                    type="email"
-                    name="correo"
-                    value={editingUser ? (editingUser as Alumno).correo : nuevoAlumno.correo}
-                    onChange={handleAlumnoInputChange}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                    required
-                  />
-                </div>
-                {!editingUser && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Contraseña</label>
-                    <div className="flex space-x-2">
-                      <input
-                        type="text"
-                        name="contrasenia"
-                        value={nuevoAlumno.contrasenia}
-                        onChange={handleAlumnoInputChange}
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={generateRandomPassword}
-                        className="mt-1 px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                      >
-                        Generar
-                      </button>
-                    </div>
-                  </div>
-                )}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Matrícula</label>
-                  <div className="flex space-x-2">
-                    <input
-                      type="number"
-                      name="matricula"
-                      value={editingUser ? (editingUser as Alumno).matricula : nuevoAlumno.matricula || ""}
-                      onChange={handleAlumnoInputChange}
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                      required
-                    />
-                    {!editingUser && (
-                      <button
-                        type="button"
-                        onClick={generateRandomMatricula}
-                        className="mt-1 px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                      >
-                        Generar
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Curso</label>
-                  <select
-                    name="id_curso"
-                    value={editingUser ? (editingUser as Alumno).id_curso : nuevoAlumno.id_curso || ""}
-                    onChange={handleAlumnoInputChange}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    required
-                  >
-                    <option value="">Seleccionar curso</option>
-                    {fetchingCursos ? (
-                      <option disabled>Cargando cursos...</option>
-                    ) : (
-                      cursos.map((curso) => (
-                        <option key={curso.id_curso} value={curso.id_curso}>
-                          {`${getAnioEscolar(curso.id_anio)} ${curso.division}`}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-              </>
-            ) : activeTab === "teachers" ? (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Nombre</label>
-                    <input
-                      type="text"
-                      name="nombre"
-                      value={editingUser ? (editingUser as Teacher).nombre : nuevoDocente.nombre}
-                      onChange={handleDocenteInputChange}
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Apellido</label>
-                    <input
-                      type="text"
-                      name="apellido"
-                      value={editingUser ? (editingUser as Teacher).apellido : nuevoDocente.apellido}
-                      onChange={handleDocenteInputChange}
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                      required
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">DNI</label>
-                  <input
-                    type="number"
-                    name="dni"
-                    value={editingUser ? (editingUser as Teacher).dni : nuevoDocente.dni || ""}
-                    onChange={handleDocenteInputChange}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Teléfono</label>
-                  <input
-                    type="tel"
-                    name="telefono"
-                    value={editingUser ? (editingUser as Teacher).telefono : nuevoDocente.telefono}
-                    onChange={handleDocenteInputChange}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Correo Electrónico</label>
-                  <input
-                    type="email"
-                    name="correo"
-                    value={editingUser ? (editingUser as Teacher).correo : nuevoDocente.correo}
-                    onChange={handleDocenteInputChange}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                    required
-                  />
-                </div>
-                {!editingUser && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Contraseña</label>
-                    <div className="flex space-x-2">
-                      <input
-                        type="text"
-                        name="contrasenia"
-                        value={nuevoDocente.contrasenia}
-                        onChange={handleDocenteInputChange}
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={generateRandomPassword}
-                        className="mt-1 px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                      >
-                        Generar
-                      </button>
-                    </div>
-                  </div>
-                )}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Seleccionar Año</label>
-                  <select
-                    value={selectedAnio || ""}
-                    onChange={handleAnioChange}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    required={!editingUser}
-                  >
-                    <option value="">Seleccionar año</option>
-                    {fetchingAnios ? (
-                      <option disabled>Cargando años...</option>
-                    ) : (
-                      anios.map((anio) => (
-                        <option key={anio.id_anio} value={anio.id_anio}>
-                          {anio.anio}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-
-                {/* Sección de materias */}
-                {selectedAnio && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Asignar Materias</label>
-                    {fetchingMaterias || fetchingMateriasDocente ? (
-                      <div className="text-center py-2">
-                        <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                        <p className="mt-1 text-sm text-gray-600">Cargando materias...</p>
-                      </div>
-                    ) : noMateriasAvailable ? (
-                      <div className="bg-yellow-50 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative">
-                        <p className="text-sm">No hay materias disponibles para este año.</p>
-                        <p className="text-sm mt-2">
-                          Por favor, seleccione otro año o contacte al administrador para agregar materias.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
-                        <div className="space-y-2">
-                          {/* Mostrar las materias del docente de otros años */}
-                          {editingUser && materiasDocente.filter((m) => m.id_anio !== selectedAnio).length > 0 && (
-                            <div className="mb-2 pb-2 border-b">
-                              <p className="text-sm font-medium text-gray-700 mb-1">
-                                Materias asignadas de otros años:
-                              </p>
-                              {materiasDocente
-                                .filter((m) => m.id_anio !== selectedAnio)
-                                .map((materia) => (
-                                  <div key={materia.id_materia} className="flex items-center space-x-2 p-1">
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedSubjects.some((m) => m.id_materia === materia.id_materia)}
-                                      onChange={() => handleMateriaChange(materia)}
-                                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                    />
-                                    <span className="text-sm text-gray-700">
-                                      {materia.materia}{" "}
-                                      <span className="text-xs text-gray-500">({getAnioName(materia.id_anio)})</span>
-                                    </span>
-                                  </div>
-                                ))}
-                            </div>
-                          )}
-
-                          {/* Mostrar las materias del año seleccionado */}
-                          <p className="text-sm font-medium text-gray-700 mb-1">
-                            Materias de {getAnioName(selectedAnio)}:
-                          </p>
-                          {materias.length === 0 ? (
-                            <p className="text-sm text-gray-500">No hay materias disponibles para este año.</p>
-                          ) : (
-                            materias.map((materia) => (
-                              <label
-                                key={materia.id_materia}
-                                className="flex items-center space-x-2 p-1 hover:bg-gray-50 rounded cursor-pointer"
-                              >
-                                <input
-                                  type="checkbox"
-                                  value={materia.id_materia}
-                                  checked={selectedSubjects.some((m) => m.id_materia === materia.id_materia)}
-                                  onChange={() => handleMateriaChange(materia)}
-                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                />
-                                <span className="text-sm text-gray-700">{materia.materia}</span>
-                              </label>
-                            ))
-                          )}
-
-                          {/* Mostrar las materias del docente del año seleccionado */}
-                          {editingUser && materiasDocente.filter((m) => m.id_anio === selectedAnio).length > 0 && (
-                            <div className="mt-2 pt-2 border-t">
-                              <p className="text-sm font-medium text-gray-700 mb-1">Materias ya asignadas:</p>
-                              {materiasDocente
-                                .filter((m) => m.id_anio === selectedAnio)
-                                .map((materia) => (
-                                  <label
-                                    key={materia.id_materia}
-                                    className="flex items-center space-x-2 p-1 hover:bg-gray-50 rounded cursor-pointer"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedSubjects.some((m) => m.id_materia === materia.id_materia)}
-                                      onChange={() => handleMateriaChange(materia)}
-                                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                    />
-                                    <span className="text-sm text-gray-700">{materia.materia}</span>
-                                  </label>
-                                ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {selectedSubjects.length > 0 && (
-                      <div className="mt-2">
-                        <div className="text-sm text-gray-500">Materias seleccionadas: {selectedSubjects.length}</div>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {selectedSubjects.map((materia) => (
-                            <span
-                              key={materia.id_materia}
-                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                            >
-                              {materia.materia}
-                              {materia.id_anio !== selectedAnio && (
-                                <span className="ml-1 text-xs text-blue-600">({getAnioName(materia.id_anio)})</span>
-                              )}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Nombre</label>
-                    <input
-                      type="text"
-                      name="nombre"
-                      value={editingUser ? (editingUser as Admin).nombre : nuevoAdmin.nombre}
-                      onChange={handleAdminInputChange}
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Apellido</label>
-                    <input
-                      type="text"
-                      name="apellido"
-                      value={editingUser ? (editingUser as Admin).apellido : nuevoAdmin.apellido}
-                      onChange={handleAdminInputChange}
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                      required
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">DNI</label>
-                  <input
-                    type="text"
-                    name="dni"
-                    value={editingUser ? (editingUser as Admin).dni : nuevoAdmin.dni}
-                    onChange={handleAdminInputChange}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Teléfono</label>
-                  <input
-                    type="tel"
-                    name="telefono"
-                    value={editingUser ? (editingUser as Admin).telefono : nuevoAdmin.telefono}
-                    onChange={handleAdminInputChange}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Correo Electrónico</label>
-                  <input
-                    type="email"
-                    name="correo"
-                    value={editingUser ? (editingUser as Admin).correo : nuevoAdmin.correo}
-                    onChange={handleAdminInputChange}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                    required
-                  />
-                </div>
-                {!editingUser && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Contraseña</label>
-                    <div className="flex space-x-2">
-                      <input
-                        type="text"
-                        name="contrasenia"
-                        value={nuevoAdmin.contrasenia}
-                        onChange={handleAdminInputChange}
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={generateRandomPassword}
-                        className="mt-1 px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                      >
-                        Generar
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-            <div className="flex justify-end space-x-4">
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                className="px-4 py-2 border rounded-md hover:bg-gray-50"
-                disabled={isLoading}
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400"
-                disabled={isLoading}
-              >
-                {isLoading ? "Guardando..." : editingUser ? "Actualizar" : "Guardar"}
-              </button>
-            </div>
-          </form>
+          {renderForm()}
         </div>
       </Modal>
     </div>
