@@ -9,6 +9,7 @@ interface User {
   name: string
   role: string
   token: string
+  id_usuario: number 
 }
 
 interface AuthContextType {

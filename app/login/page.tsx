@@ -42,7 +42,11 @@ export default function LoginPage() {
             token: response.token,
             role: response.tipo.toLowerCase(),
             name: response.nombre + " " + response.apellido,
+            id_usuario: response.id_usuario
+           
+
           })
+       
 
           // Redirigir según el tipo de usuario
           if (response.tipo.toLowerCase() === "administrativo") {
