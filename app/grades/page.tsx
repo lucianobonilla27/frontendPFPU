@@ -588,7 +588,7 @@ export default function GradesManagement() {
                     onChange={(e) => setGradeData({ ...gradeData, description: e.target.value })}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
                     rows={3}
-                    required
+               
                   />
                 </div>
                 <div className="flex justify-end space-x-4 pt-4">
