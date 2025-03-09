@@ -1598,6 +1598,9 @@ const UserManagement = () => {
 
   // Función para eliminar un usuario
   const handleDelete = async (id_usuario: number) => {
+    if (id_usuario === 7) {
+      return alert("No puedes eliminar al usuario administrador principal.")
+    }
     if (window.confirm("¿Estás seguro de que quieres eliminar este usuario?")) {
       try {
         setIsLoading(true)
@@ -1793,6 +1796,7 @@ const UserManagement = () => {
                       <button onClick={() => handleEdit(alumno)} className="p-1 hover:bg-gray-100 rounded">
                         <Pencil className="h-4 w-4" />
                       </button>
+                      
                       <button onClick={() => handleDelete(alumno.id_usuario)} className="p-1 hover:bg-gray-100 rounded">
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -1838,9 +1842,12 @@ const UserManagement = () => {
                       <button onClick={() => handleEdit(admin)} className="p-1 hover:bg-gray-100 rounded">
                         <Pencil className="h-4 w-4" />
                       </button>
-                      <button onClick={() => handleDelete(admin.id_usuario)} className="p-1 hover:bg-gray-100 rounded">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {admin.id_usuario !== 7 && (
+                        <button onClick={() => handleDelete(admin.id_usuario)} className="p-1 hover:bg-gray-100 rounded">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                     
                     </div>
                   </td>
                 </tr>
