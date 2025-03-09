@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect, useCallback, useRef } from "react"
-import { Pencil, Trash2, PlusCircle } from "lucide-react"
+import { Pencil, Trash2, PlusCircle, Loader2, AlertCircle } from "lucide-react"
 
 // Definición de tipos según la estructura real de la API
 interface Alumno {
@@ -958,6 +958,11 @@ const UserManagement = () => {
   const [materiasToAdd, setMateriasToAdd] = useState<Materia[]>([])
   const [materiasToRemove, setMateriasToRemove] = useState<Materia[]>([])
 
+  // Añadir estos estados al componente UserManagement, junto a los otros estados
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [userToDelete, setUserToDelete] = useState<number | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   // Estado para formulario nuevo alumno con valores por defecto según la API
   const [nuevoAlumno, setNuevoAlumno] = useState<NuevoAlumno>({
     id_usuario: 0,
@@ -1596,43 +1601,52 @@ const UserManagement = () => {
     setMateriasSeleccionadasPorAnio({})
   }
 
-  // Función para eliminar un usuario
-  const handleDelete = async (id_usuario: number) => {
+  // Modificar la función handleDelete para mostrar el modal en lugar de usar window.confirm
+  const handleDelete = (id_usuario: number) => {
     if (id_usuario === 7) {
       return alert("No puedes eliminar al usuario administrador principal.")
     }
-    if (window.confirm("¿Estás seguro de que quieres eliminar este usuario?")) {
-      try {
-        setIsLoading(true)
+    setUserToDelete(id_usuario)
+    setShowDeleteConfirm(true)
+  }
 
-        let endpoint = ""
-        if (activeTab === "students") {
-          endpoint = "https://localhost:7213/DeleteAlumno"
-        } else if (activeTab === "teachers") {
-          endpoint = "https://localhost:7213/DeleteDocente"
-        } else if (activeTab === "admins") {
-          endpoint = "https://localhost:7213/DeleteAdministrador"
-        }
+  // Añadir esta nueva función para realizar la eliminación cuando se confirma
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return
 
-        await makeRequest("DELETE", `${endpoint}?id_usuario=${id_usuario}`)
+    try {
+      setIsDeleting(true)
 
-        // Actualizar la lista correspondiente después de eliminar
-        if (activeTab === "students") {
-          const updatedAlumnos = await makeRequest("GET", "https://localhost:7213/GetAlumnos")
-          setAlumnos(updatedAlumnos)
-        } else if (activeTab === "teachers") {
-          const updatedDocentes = await makeRequest("GET", "https://localhost:7213/GetDocentes")
-          setDocentes(updatedDocentes)
-        } else if (activeTab === "admins") {
-          const updatedAdmins = await makeRequest("GET", "https://localhost:7213/GetAdministradores")
-          setAdministrativos(updatedAdmins)
-        }
-      } catch (error) {
-        console.error("Error al eliminar usuario:", error)
-        setError("Ocurrió un error al eliminar el usuario. Por favor, inténtalo de nuevo.")
-      } finally {
-        setIsLoading(false)
+      let endpoint = ""
+      if (activeTab === "students") {
+        endpoint = "https://localhost:7213/DeleteAlumno"
+      } else if (activeTab === "teachers") {
+        endpoint = "https://localhost:7213/DeleteDocente"
+      } else if (activeTab === "admins") {
+        endpoint = "https://localhost:7213/DeleteAdministrador"
       }
+
+      await makeRequest("DELETE", `${endpoint}?id_usuario=${userToDelete}`)
+
+      // Actualizar la lista correspondiente después de eliminar
+      if (activeTab === "students") {
+        const updatedAlumnos = await makeRequest("GET", "https://localhost:7213/GetAlumnos")
+        setAlumnos(updatedAlumnos)
+      } else if (activeTab === "teachers") {
+        const updatedDocentes = await makeRequest("GET", "https://localhost:7213/GetDocentes")
+        setDocentes(updatedDocentes)
+      } else if (activeTab === "admins") {
+        const updatedAdmins = await makeRequest("GET", "https://localhost:7213/GetAdministradores")
+        setAdministrativos(updatedAdmins)
+      }
+
+      setShowDeleteConfirm(false)
+      setUserToDelete(null)
+    } catch (error) {
+      console.error("Error al eliminar usuario:", error)
+      setError("Ocurrió un error al eliminar el usuario. Por favor, inténtalo de nuevo.")
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -1796,7 +1810,7 @@ const UserManagement = () => {
                       <button onClick={() => handleEdit(alumno)} className="p-1 hover:bg-gray-100 rounded">
                         <Pencil className="h-4 w-4" />
                       </button>
-                      
+
                       <button onClick={() => handleDelete(alumno.id_usuario)} className="p-1 hover:bg-gray-100 rounded">
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -1843,11 +1857,13 @@ const UserManagement = () => {
                         <Pencil className="h-4 w-4" />
                       </button>
                       {admin.id_usuario !== 7 && (
-                        <button onClick={() => handleDelete(admin.id_usuario)} className="p-1 hover:bg-gray-100 rounded">
+                        <button
+                          onClick={() => handleDelete(admin.id_usuario)}
+                          className="p-1 hover:bg-gray-100 rounded"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </button>
                       )}
-                     
                     </div>
                   </td>
                 </tr>
@@ -1865,6 +1881,44 @@ const UserManagement = () => {
               : `Nuevo ${activeTab === "students" ? "Alumno" : activeTab === "teachers" ? "Docente" : "Administrativo"}`}
           </h2>
           {renderForm()}
+        </div>
+      </Modal>
+      {/* Modal de confirmación para eliminar usuario */}
+      <Modal isOpen={showDeleteConfirm} onClose={() => !isDeleting && setShowDeleteConfirm(false)}>
+        <div className="p-6">
+          
+        <div className="flex items-center space-x-3 mb-4">
+        <AlertCircle className="w-6 h-6 text-red-600" />
+        <h2 className="text-xl font-bold">Confirmar Eliminación</h2>
+      </div>
+          <p className="text-sm text-gray-600 mb-6">
+            ¿Estás seguro de que deseas eliminar este usuario? Esta acción no se puede deshacer.
+          </p>
+          <div className="flex justify-end space-x-4">
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(false)}
+              className="px-4 py-2 border rounded-md hover:bg-gray-50"
+              disabled={isDeleting}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center"
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                "Eliminar"
+              )}
+            </button>
+          </div>
         </div>
       </Modal>
     </div>
