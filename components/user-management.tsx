@@ -1807,11 +1807,11 @@ const UserManagement = () => {
                   <td className="px-4 py-2">{alumno.correo}</td>
                   <td className="px-4 py-2">
                     <div className="flex space-x-2">
-                      <button onClick={() => handleEdit(alumno)} className="p-1 hover:bg-gray-100 rounded">
+                      <button onClick={() => handleEdit(alumno)} className="p-1 hover:text-blue-600 hover:bg-blue-50 rounded">
                         <Pencil className="h-4 w-4" />
                       </button>
 
-                      <button onClick={() => handleDelete(alumno.id_usuario)} className="p-1 hover:bg-gray-100 rounded">
+                      <button onClick={() => handleDelete(alumno.id_usuario)} className="p-1 hover:text-red-600 hover:bg-red-50 rounded">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
@@ -1829,12 +1829,12 @@ const UserManagement = () => {
                   <td className="px-6 py-4">{teacher.correo}</td>
                   <td className="px-6 py-4">
                     <div className="flex space-x-2">
-                      <button onClick={() => handleEdit(teacher)} className="p-1 hover:bg-gray-100 rounded">
+                      <button onClick={() => handleEdit(teacher)} className="p-1 hover:text-blue-600 hover:bg-blue-50 rounded">
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(teacher.id_usuario)}
-                        className="p-1 hover:bg-gray-100 rounded"
+                        className="p-1 hover:text-red-600 hover:bg-red-50 rounded"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -1853,13 +1853,13 @@ const UserManagement = () => {
                   <td className="px-6 py-4">{admin.correo}</td>
                   <td className="px-6 py-4">
                     <div className="flex space-x-2">
-                      <button onClick={() => handleEdit(admin)} className="p-1 hover:bg-gray-100 rounded">
+                      <button onClick={() => handleEdit(admin)} className="p-1 hover:text-blue-600 hover:bg-blue-50 rounded">
                         <Pencil className="h-4 w-4" />
                       </button>
                       {admin.id_usuario !== 7 && (
                         <button
                           onClick={() => handleDelete(admin.id_usuario)}
-                          className="p-1 hover:bg-gray-100 rounded"
+                          className="p-1 hover:text-red-600 hover:bg-red-50 rounded"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
