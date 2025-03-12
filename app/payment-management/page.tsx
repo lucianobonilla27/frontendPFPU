@@ -15,9 +15,10 @@ import {
   Trash2,
   X,
   Loader2,
+  CreditCard,
 } from "lucide-react"
 
-// Interfaces para los tipos de datos
+// Interfaces for data types
 interface Alumno {
   id_usuario: number
   nombre: string
@@ -37,18 +38,27 @@ interface TipoPago {
   tipo: string
 }
 
+interface Deuda {
+  id_deuda: number
+  fecha_vencimiento: string
+  id_alumno: number
+  estado: string
+  monto: number
+  id_tipo: number
+  alumno?: Alumno
+  tipo_pago?: TipoPago
+}
+
 interface Pago {
   id_pago: number
-  monto: number
-  fecha: string
-  id_tipo: number
-  estado: string
   id_alumno: number
-  tipo_pago?: TipoPago
+  fecha: string
+  monto: number
+  id_deuda: number
   alumno?: Alumno
 }
 
-// Componente Modal reutilizable
+// Reusable Modal component
 const Modal = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null
 
@@ -65,8 +75,8 @@ const Modal = ({ isOpen, onClose, children }) => {
   )
 }
 
-// Componente para el formulario de pago
-const PaymentForm = ({
+// Debt form component
+const DebtForm = ({
   isEditing,
   initialValues,
   onSubmit,
@@ -79,89 +89,42 @@ const PaymentForm = ({
 }) => {
   const [formValues, setFormValues] = useState(initialValues)
   const [dateError, setDateError] = useState("")
-  const conceptoInputRef = useRef(null)
+  const montoInputRef = useRef(null)
 
-  // Enfocar el input cuando el componente se monta
+  // Focus input when component mounts
   useEffect(() => {
-    if (conceptoInputRef.current) {
-      conceptoInputRef.current.focus()
+    if (montoInputRef.current) {
+      montoInputRef.current.focus()
     }
   }, [])
 
-  // Actualizar valores cuando cambian los initialValues
+  // Update values when initialValues change
   useEffect(() => {
     setFormValues(initialValues)
   }, [initialValues])
 
-  // Determinar qué estados están permitidos según la fecha
-  const getAvailableStates = () => {
-    if (!formValues.fecha) return ["Pendiente", "Pagado", "Vencido"]
-
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
-    const fechaVencimiento = new Date(formValues.fecha)
-    fechaVencimiento.setHours(0, 0, 0, 0)
-
-    // Si la fecha es pasada (anterior a hoy)
-    if (fechaVencimiento < today) {
-      return ["Pagado", "Vencido"]
-    }
-
-    // Si la fecha es hoy
-    if (fechaVencimiento.getTime() === today.getTime()) {
-      return ["Pagado", "Pendiente"]
-    }
-
-    // Si la fecha es futura
-    return ["Pagado", "Pendiente"]
-  }
-
-  // Verificar si el estado actual es válido para la fecha seleccionada
-  useEffect(() => {
-    const availableStates = getAvailableStates()
-
-    // Si el estado actual no está en los estados disponibles, cambiarlo al primer estado disponible
-    if (formValues.estado && !availableStates.includes(formValues.estado)) {
-      setFormValues((prev) => ({
-        ...prev,
-        estado: availableStates[0],
-      }))
-    }
-  }, [formValues.estado, getAvailableStates]) // Removed formValues.fecha from dependencies
-
   const handleInputChange = (e) => {
     const { name, value } = e.target
 
-    if (name === "fecha") {
+    if (name === "fecha_vencimiento") {
       setDateError("")
     }
 
     setFormValues((prev) => ({
       ...prev,
-      [name]: name === "monto" || name === "id_tipo" || name === "id_alumno" ? Number(value) : value,
+      [name]: name === "monto" || name === "id_alumno" || name === "id_tipo" ? Number(value) : value,
     }))
   }
 
   const handleSubmit = (e) => {
     e.preventDefault()
 
-    // Validación final antes de enviar
-    const availableStates = getAvailableStates()
-    if (!availableStates.includes(formValues.estado)) {
-      setDateError(`Para la fecha seleccionada, el estado solo puede ser: ${availableStates.join(" o ")}`)
-      return
-    }
-
     onSubmit(formValues)
   }
 
-  // Obtener los estados disponibles para mostrar en el select
-  const availableStates = getAvailableStates()
-
   return (
     <div className="p-6">
-      <h2 className="text-xl font-bold mb-4">{isEditing ? "Editar Pago" : "Registrar Pago"}</h2>
+      <h2 className="text-xl font-bold mb-4">{isEditing ? "Editar Deuda" : "Registrar Deuda"}</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700">Alumno</label>
@@ -187,7 +150,7 @@ const PaymentForm = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Tipo de Pago</label>
+          <label className="block text-sm font-medium text-gray-700">Tipo de Deuda</label>
           <select
             name="id_tipo"
             value={formValues.id_tipo || ""}
@@ -198,7 +161,7 @@ const PaymentForm = ({
           >
             <option value="">Seleccionar tipo...</option>
             {fetchingTiposPago ? (
-              <option disabled>Cargando tipos de pago...</option>
+              <option disabled>Cargando tipos de deuda...</option>
             ) : (
               tiposPago.map((tipo) => (
                 <option key={tipo.id_tipo} value={tipo.id_tipo}>
@@ -212,6 +175,7 @@ const PaymentForm = ({
         <div>
           <label className="block text-sm font-medium text-gray-700">Monto</label>
           <input
+            ref={montoInputRef}
             type="number"
             name="monto"
             value={formValues.monto || ""}
@@ -228,45 +192,25 @@ const PaymentForm = ({
           <label className="block text-sm font-medium text-gray-700">Fecha de Vencimiento</label>
           <input
             type="date"
-            name="fecha"
-            value={formValues.fecha ? formValues.fecha.split("T")[0] : ""}
+            name="fecha_vencimiento"
+            value={formValues.fecha_vencimiento ? formValues.fecha_vencimiento.split("T")[0] : ""}
             onChange={handleInputChange}
             className={`mt-1 block w-full rounded-md border ${dateError ? "border-red-300" : "border-gray-300"} px-3 py-2`}
             required
             disabled={isSubmitting}
           />
           {dateError && <p className="mt-1 text-sm text-red-600">{dateError}</p>}
-          <p className="mt-1 text-xs text-gray-500">La fecha determina los estados disponibles para el pago.</p>
+          <p className="mt-1 text-xs text-gray-500">La fecha determina los estados disponibles para la deuda.</p>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Estado</label>
-          <select
-            name="estado"
-            value={formValues.estado || ""}
-            onChange={handleInputChange}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-            required
-            disabled={isSubmitting}
-          >
-            <option value="">Seleccionar estado...</option>
-            {availableStates.map((estado) => (
-              <option key={estado} value={estado}>
-                {estado}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1 text-xs text-gray-500">
-            {formValues.fecha && (
-              <>
-                {new Date(formValues.fecha) < new Date()
-                  ? "Fecha pasada: solo puede estar Vencido o Pagado"
-                  : new Date(formValues.fecha).setHours(0, 0, 0, 0) === new Date().setHours(0, 0, 0, 0)
-                    ? "Fecha actual: puede estar Pendiente o Pagado"
-                    : "Fecha futura: puede estar Pendiente o Pagado"}
-              </>
-            )}
+        <div className="bg-blue-50 p-3 rounded-md border border-blue-100">
+          <p className="text-sm text-blue-700">
+            <strong>Nota:</strong> El estado de la deuda se actualiza automáticamente por el sistema cuando:
           </p>
+          <ul className="text-sm text-blue-700 list-disc pl-5 mt-1">
+            <li>Se vence la fecha de pago (cambia a "Vencido")</li>
+            <li>Se completa el pago total (cambia a "Pagado")</li>
+          </ul>
         </div>
 
         <div className="flex justify-end space-x-4 pt-4">
@@ -298,19 +242,163 @@ const PaymentForm = ({
   )
 }
 
-// Componente para el formulario de tipo de pago
+// Payment form component
+const PaymentForm = ({
+  isEditing,
+  initialValues,
+  onSubmit,
+  onCancel,
+  isSubmitting,
+  deuda,
+  pagosPorDeuda,
+  calculateTotalPagos,
+  calculateRemainingDebt,
+}) => {
+  const [formValues, setFormValues] = useState(initialValues)
+  const montoInputRef = useRef(null)
+
+  // Get payments for this debt
+  const pagosDeuda = deuda ? pagosPorDeuda[deuda.id_deuda] || [] : []
+  const totalPagado = deuda ? calculateTotalPagos(deuda.id_deuda) : 0
+
+
+  // Focus input when component mounts
+  useEffect(() => {
+    if (montoInputRef.current) {
+      montoInputRef.current.focus()
+    }
+  }, [])
+
+  // Update values when initialValues change
+  useEffect(() => {
+    setFormValues(initialValues)
+  }, [initialValues])
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+
+    setFormValues((prev) => ({
+      ...prev,
+      [name]: name === "monto" ? Number(value) : value,
+    }))
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    onSubmit(formValues)
+  }
+
+  return (
+    <div className="p-6">
+      <h2 className="text-xl font-bold mb-4">{isEditing ? "Editar Pago" : "Registrar Pago"}</h2>
+
+      {deuda && (
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <h3 className="font-medium text-blue-800">Detalles de la deuda</h3>
+          <p className="text-sm text-blue-700">Monto total: ${deuda.monto.toLocaleString()}</p>
+          <p className="text-sm text-blue-700">Pagado hasta ahora: ${totalPagado.toLocaleString()}</p>
+         
+          <p className="text-sm text-blue-700">Vencimiento: {new Date(deuda.fecha_vencimiento).toLocaleDateString()}</p>
+        </div>
+      )}
+
+      {deuda && pagosDeuda.length > 0 && (
+        <div className="mb-4">
+          <h3 className="font-medium text-gray-700 mb-2">Historial de pagos</h3>
+          <div className="max-h-40 overflow-y-auto border rounded p-2">
+            {pagosDeuda.map((pago, index) => (
+              <div key={pago.id_pago} className={`${index > 0 ? "border-t border-gray-100 pt-2 mt-2" : ""} text-sm`}>
+                <div className="flex justify-between">
+                  <span>${pago.monto.toLocaleString()}</span>
+                  <span className="text-gray-500">{formatDate(pago.fecha)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Monto</label>
+          <input
+            ref={montoInputRef}
+            type="number"
+            name="monto"
+            value={formValues.monto || ""}
+            onChange={handleInputChange}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            required
+            disabled={isSubmitting}
+            min="0"
+      
+            step="0.01"
+          />
+          {deuda && (
+            <p className="mt-1 text-xs text-blue-600">
+              Puede pagar hasta ${deuda.monto.toLocaleString()} para completar esta deuda.
+            </p>
+          )}
+          {deuda && deuda.monto === 0 && (
+            <p className="mt-1 text-xs text-green-600">Esta deuda ya ha sido pagada en su totalidad.</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Fecha de Pago</label>
+          <input
+            type="date"
+            name="fecha"
+            value={formValues.fecha ? formValues.fecha.split("T")[0] : ""}
+            onChange={handleInputChange}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            required
+            disabled={isSubmitting}
+          />
+        </div>
+
+        <div className="flex justify-end space-x-4 pt-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 border rounded-md hover:bg-gray-50"
+            disabled={isSubmitting}
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              "Guardar"
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// Payment type form component
 const PaymentTypeForm = ({ isEditing, initialValues, onSubmit, onCancel, isSubmitting }) => {
   const [formValues, setFormValues] = useState(initialValues)
   const tipoInputRef = useRef(null)
 
-  // Enfocar el input cuando el componente se monta
+  // Focus input when component mounts
   useEffect(() => {
     if (tipoInputRef.current) {
       tipoInputRef.current.focus()
     }
   }, [])
 
-  // Actualizar valores cuando cambian los initialValues
+  // Update values when initialValues change
   useEffect(() => {
     setFormValues(initialValues)
   }, [initialValues])
@@ -375,8 +463,22 @@ const PaymentTypeForm = ({ isEditing, initialValues, onSubmit, onCancel, isSubmi
   )
 }
 
-// Componente de confirmación de eliminación
+// Delete confirmation component
 const DeleteConfirmation = ({ item, itemType, onConfirm, onCancel, isSubmitting }) => {
+  let itemDescription = ""
+
+  switch (itemType) {
+    case "payment":
+      itemDescription = `el pago de $${item.monto}`
+      break
+    case "debt":
+      itemDescription = `la deuda de $${item.monto}`
+      break
+    case "paymentType":
+      itemDescription = `el tipo de pago "${item.tipo}"`
+      break
+  }
+
   return (
     <div className="p-6">
       <div className="flex items-center space-x-3 mb-4">
@@ -384,9 +486,7 @@ const DeleteConfirmation = ({ item, itemType, onConfirm, onCancel, isSubmitting 
         <h2 className="text-xl font-bold">Confirmar Eliminación</h2>
       </div>
       <p className="text-gray-600 mb-6">
-        ¿Estás seguro de que deseas eliminar{" "}
-        {itemType === "payment" ? `el pago de $${item.monto}` : `el tipo de pago "${item.tipo}"`}? Esta acción no se
-        puede deshacer.
+        ¿Estás seguro de que deseas eliminar {itemDescription}? Esta acción no se puede deshacer.
       </p>
       <div className="flex justify-end space-x-4">
         <button onClick={onCancel} className="px-4 py-2 border rounded-md hover:bg-gray-50" disabled={isSubmitting}>
@@ -411,31 +511,51 @@ const DeleteConfirmation = ({ item, itemType, onConfirm, onCancel, isSubmitting 
   )
 }
 
+// Function to format dates correctly
+const formatDate = (dateString: string) => {
+  if (!dateString) return ""
+
+  // Split date into parts (assuming YYYY-MM-DD format)
+  const parts = dateString.split("T")[0].split("-")
+  if (parts.length !== 3) return dateString
+
+  // Create date using UTC to avoid timezone issues
+  const year = Number.parseInt(parts[0])
+  const month = Number.parseInt(parts[1]) - 1 // Months in JS are 0-11
+  const day = Number.parseInt(parts[2])
+
+  return new Date(year, month, day).toLocaleDateString()
+}
+
 export default function PaymentManagement() {
-  // Estados para la gestión de pagos
+  // States for debt and payment management
+  const [deudas, setDeudas] = useState<Deuda[]>([])
   const [pagos, setPagos] = useState<Pago[]>([])
   const [tiposPago, setTiposPago] = useState<TipoPago[]>([])
   const [alumnos, setAlumnos] = useState<Alumno[]>([])
-  const [pagosPorAlumno, setPagosPorAlumno] = useState<{ [key: number]: Pago[] }>({})
+  const [deudasPorAlumno, setDeudasPorAlumno] = useState<{ [key: number]: Deuda[] }>({})
+  const [pagosPorDeuda, setPagosPorDeuda] = useState<{ [key: number]: Pago[] }>({})
 
-  // Estados para filtros y búsqueda
+  // States for filters and search
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedStatus, setSelectedStatus] = useState("all")
-  const [selectedType, setSelectedType] = useState("all")
 
-  // Estados para modales
+  // States for modals
+  const [showDebtModal, setShowDebtModal] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showPaymentTypeModal, setShowPaymentTypeModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showNotifyModal, setShowNotifyModal] = useState(false)
 
-  // Estados para edición y eliminación
+  // States for editing and deleting
+  const [editingDebt, setEditingDebt] = useState<Deuda | null>(null)
   const [editingPayment, setEditingPayment] = useState<Pago | null>(null)
   const [editingPaymentType, setEditingPaymentType] = useState<TipoPago | null>(null)
   const [itemToDelete, setItemToDelete] = useState<any>(null)
-  const [deleteType, setDeleteType] = useState<"payment" | "paymentType">("payment")
+  const [deleteType, setDeleteType] = useState<"payment" | "debt" | "paymentType">("debt")
+  const [selectedDebtForPayment, setSelectedDebtForPayment] = useState<Deuda | null>(null)
 
-  // Estados para mensajes y carga
+  // States for messages and loading
   const [successMessage, setSuccessMessage] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -443,33 +563,25 @@ export default function PaymentManagement() {
   const [fetchingAlumnos, setFetchingAlumnos] = useState(true)
   const [fetchingTiposPago, setFetchingTiposPago] = useState(true)
 
-  // Estado para el alumno seleccionado
+  // State for selected student
   const [selectedAlumno, setSelectedAlumno] = useState<Alumno | null>(null)
 
-  // Función para formatear fechas correctamente
-  const formatDate = (dateString: string) => {
-    if (!dateString) return ""
-
-    // Dividir la fecha en partes (asumiendo formato YYYY-MM-DD)
-    const parts = dateString.split("T")[0].split("-")
-    if (parts.length !== 3) return dateString
-
-    // Crear fecha usando UTC para evitar problemas de zona horaria
-    const year = Number.parseInt(parts[0])
-    const month = Number.parseInt(parts[1]) - 1 // Los meses en JS son 0-11
-    const day = Number.parseInt(parts[2])
-
-    return new Date(year, month, day).toLocaleDateString()
+  // Initial values for new debts, payments, and payment types
+  const initialDebt: Deuda = {
+    id_deuda: 0,
+    fecha_vencimiento: new Date().toISOString().split("T")[0],
+    id_alumno: 0,
+    estado: "Pendiente",
+    monto: 0,
+    id_tipo: 0,
   }
 
-  // Valores iniciales para nuevos pagos y tipos de pago
   const initialPayment: Pago = {
     id_pago: 0,
-    monto: 0,
-    fecha: new Date().toISOString().split("T")[0],
-    id_tipo: 0,
-    estado: "Pendiente",
     id_alumno: 0,
+    fecha: new Date().toISOString().split("T")[0],
+    monto: 0,
+    id_deuda: 0,
   }
 
   const initialPaymentType: TipoPago = {
@@ -477,7 +589,7 @@ export default function PaymentManagement() {
     tipo: "",
   }
 
-  // Función para hacer peticiones a la API
+  // Function to make API requests
   const makeRequest = useCallback(async (method: string, url: string, data: any = null): Promise<any> => {
     try {
       const options: RequestInit = {
@@ -497,7 +609,7 @@ export default function PaymentManagement() {
         throw new Error(`Error: ${response.status}`)
       }
 
-      // Verificar si la respuesta es JSON o texto
+      // Check if response is JSON or text
       const contentType = response.headers.get("content-type")
       if (contentType && contentType.includes("application/json")) {
         return await response.json()
@@ -511,64 +623,93 @@ export default function PaymentManagement() {
     }
   }, [])
 
-  // Cargar todos los pagos
-  const fetchPagos = useCallback(async () => {
+  // Load all debts
+  const fetchDeudas = useCallback(async () => {
     try {
       setIsLoading(true)
-      const data = await makeRequest("GET", "https://localhost:7213/GetAllPago")
-      setPagos(data)
+      const data = await makeRequest("GET", "https://localhost:7213/GetAllDeuda")
+      setDeudas(data)
 
-      // Organizar pagos por alumno
-      const pagosPorAlumnoObj: { [key: number]: Pago[] } = {}
-      for (const pago of data) {
-        if (!pagosPorAlumnoObj[pago.id_alumno]) {
-          pagosPorAlumnoObj[pago.id_alumno] = []
+      // Organize debts by student
+      const deudasPorAlumnoObj: { [key: number]: Deuda[] } = {}
+      for (const deuda of data) {
+        if (!deudasPorAlumnoObj[deuda.id_alumno]) {
+          deudasPorAlumnoObj[deuda.id_alumno] = []
         }
-        pagosPorAlumnoObj[pago.id_alumno].push(pago)
+        deudasPorAlumnoObj[deuda.id_alumno].push(deuda)
       }
-      setPagosPorAlumno(pagosPorAlumnoObj)
+      setDeudasPorAlumno(deudasPorAlumnoObj)
+
+      // Fetch payments for each debt
+      await fetchPagosPorDeuda(data)
     } catch (error) {
-      console.error("Error fetching pagos:", error)
-      setErrorMessage("No se pudieron cargar los pagos. Por favor, intenta de nuevo más tarde.")
+      console.error("Error fetching deudas:", error)
+      setErrorMessage("No se pudieron cargar las deudas. Por favor, intenta de nuevo más tarde.")
     } finally {
       setIsLoading(false)
     }
   }, [makeRequest])
 
-  // Función para verificar y actualizar pagos vencidos
-  const checkAndUpdateOverduePagos = useCallback(async () => {
+  // Fetch payments for each debt
+  const fetchPagosPorDeuda = useCallback(
+    async (deudas: Deuda[]) => {
+      try {
+        const pagosPorDeudaObj: { [key: number]: Pago[] } = {}
+
+        // Get all payments
+        const allPagos = await makeRequest("GET", "https://localhost:7213/GetAllPago")
+
+        // Group payments by debt ID
+        for (const pago of allPagos) {
+          if (!pagosPorDeudaObj[pago.id_deuda]) {
+            pagosPorDeudaObj[pago.id_deuda] = []
+          }
+          pagosPorDeudaObj[pago.id_deuda].push(pago)
+        }
+
+        setPagosPorDeuda(pagosPorDeudaObj)
+        setPagos(allPagos)
+      } catch (error) {
+        console.error("Error fetching payments by debt:", error)
+      }
+    },
+    [makeRequest],
+  )
+
+  // Function to check and update overdue debts
+  const checkAndUpdateOverdueDeudas = useCallback(async () => {
     try {
       const today = new Date()
-      today.setHours(0, 0, 0, 0) // Normalizar a inicio del día
+      today.setHours(0, 0, 0, 0) // Normalize to start of day
 
-      const pagosToUpdate = pagos.filter((pago) => {
-        // Solo verificar pagos pendientes
-        if (pago.estado !== "Pendiente") return false
+      const deudasToUpdate = deudas.filter((deuda) => {
+        // Only check pending debts
+        if (deuda.estado !== "Pendiente") return false
 
-        // Convertir fecha de vencimiento a objeto Date
-        const fechaVencimiento = new Date(pago.fecha)
+        // Convert due date to Date object
+        const fechaVencimiento = new Date(deuda.fecha_vencimiento)
         fechaVencimiento.setHours(0, 0, 0, 0)
 
-        // Verificar si la fecha de vencimiento ya pasó (es anterior a hoy)
+        // Check if due date has passed (is before today)
         return fechaVencimiento < today
       })
 
-      // Actualizar pagos vencidos
-      for (const pago of pagosToUpdate) {
-        const updatedPago = { ...pago, estado: "Vencido" }
-        await makeRequest("PUT", "https://localhost:7213/UpdatePago", updatedPago)
+      // Update overdue debts
+      for (const deuda of deudasToUpdate) {
+        const updatedDeuda = { ...deuda, estado: "Vencido" }
+        await makeRequest("PUT", "https://localhost:7213/UpdateDeuda", updatedDeuda)
       }
 
-      // Si se actualizó algún pago, recargar la lista
-      if (pagosToUpdate.length > 0) {
-        await fetchPagos()
+      // If any debt was updated, reload the list
+      if (deudasToUpdate.length > 0) {
+        await fetchDeudas()
       }
     } catch (error) {
-      console.error("Error checking overdue pagos:", error)
+      console.error("Error checking overdue deudas:", error)
     }
-  }, [pagos, makeRequest, fetchPagos])
+  }, [deudas, makeRequest, fetchDeudas])
 
-  // Cargar todos los tipos de pago
+  // Load all payment types
   const fetchTiposPago = useCallback(async () => {
     try {
       setFetchingTiposPago(true)
@@ -582,7 +723,7 @@ export default function PaymentManagement() {
     }
   }, [makeRequest])
 
-  // Cargar todos los alumnos
+  // Load all students
   const fetchAlumnos = useCallback(async () => {
     try {
       setFetchingAlumnos(true)
@@ -596,36 +737,124 @@ export default function PaymentManagement() {
     }
   }, [makeRequest])
 
-  // Cargar datos iniciales
+  // Load initial data
   useEffect(() => {
-    fetchPagos()
+    fetchDeudas()
     fetchTiposPago()
     fetchAlumnos()
-  }, [fetchPagos, fetchTiposPago, fetchAlumnos])
+  }, [fetchDeudas, fetchTiposPago, fetchAlumnos])
 
-  // Verificar pagos vencidos cuando se cargan los pagos
+  // Check overdue debts when debts are loaded
   useEffect(() => {
-    if (pagos.length > 0) {
-      checkAndUpdateOverduePagos()
+    if (deudas.length > 0) {
+      checkAndUpdateOverdueDeudas()
     }
-  }, [pagos.length, checkAndUpdateOverduePagos])
+  }, [deudas.length, checkAndUpdateOverdueDeudas])
 
-  // Función para crear un nuevo pago
+  // Function to create a new debt
+  const createDeuda = async (deudaData: Deuda) => {
+    try {
+      setIsSubmitting(true)
+      await makeRequest("POST", "https://localhost:7213/AddDeuda", deudaData)
+
+      // Reload debt list
+      await fetchDeudas()
+
+      // Show success message
+      setSuccessMessage("Deuda registrada correctamente")
+      setTimeout(() => setSuccessMessage(""), 3000)
+
+      // Close modal
+      setShowDebtModal(false)
+      setEditingDebt(null)
+    } catch (error) {
+      console.error("Error creating deuda:", error)
+      setErrorMessage("No se pudo registrar la deuda. Por favor, intenta de nuevo.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Function to update an existing debt
+  const updateDeuda = async (deudaData: Deuda) => {
+    try {
+      setIsSubmitting(true)
+      await makeRequest("PUT", "https://localhost:7213/UpdateDeuda", deudaData)
+
+      // Reload debt list
+      await fetchDeudas()
+
+      // Show success message
+      setSuccessMessage("Deuda actualizada correctamente")
+      setTimeout(() => setSuccessMessage(""), 3000)
+
+      // Close modal
+      setShowDebtModal(false)
+      setEditingDebt(null)
+    } catch (error) {
+      console.error("Error updating deuda:", error)
+      setErrorMessage("No se pudo actualizar la deuda. Por favor, intenta de nuevo.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Function to delete a debt
+  const deleteDeuda = async () => {
+    if (!itemToDelete) return
+
+    try {
+      setIsSubmitting(true)
+      await makeRequest("DELETE", `https://localhost:7213/DeleteDeuda/${itemToDelete.id_deuda}`)
+
+      // Reload debt list
+      await fetchDeudas()
+
+      // Show success message
+      setSuccessMessage("Deuda eliminada correctamente")
+      setTimeout(() => setSuccessMessage(""), 3000)
+
+      // Close modal
+      setShowDeleteModal(false)
+      setItemToDelete(null)
+    } catch (error) {
+      console.error("Error deleting deuda:", error)
+      setErrorMessage("No se pudo eliminar la deuda. Por favor, intenta de nuevo.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Function to create a new payment
   const createPago = async (pagoData: Pago) => {
     try {
       setIsSubmitting(true)
+
+      // Make sure payment has correct student ID
+      if (selectedDebtForPayment) {
+        pagoData.id_alumno = selectedDebtForPayment.id_alumno
+        pagoData.id_deuda = selectedDebtForPayment.id_deuda
+      }
+
+      // Create payment
       await makeRequest("POST", "https://localhost:7213/AddPago", pagoData)
 
-      // Recargar la lista de pagos
-      await fetchPagos()
+      // Reload debt and payment lists
+      await fetchDeudas()
 
-      // Mostrar mensaje de éxito
+      // Check if the debt is now fully paid and update status if needed
+      if (selectedDebtForPayment) {
+        await updateDebtStatus(selectedDebtForPayment)
+      }
+
+      // Show success message
       setSuccessMessage("Pago registrado correctamente")
       setTimeout(() => setSuccessMessage(""), 3000)
 
-      // Cerrar el modal
+      // Close modal
       setShowPaymentModal(false)
       setEditingPayment(null)
+      setSelectedDebtForPayment(null)
     } catch (error) {
       console.error("Error creating pago:", error)
       setErrorMessage("No se pudo registrar el pago. Por favor, intenta de nuevo.")
@@ -634,20 +863,26 @@ export default function PaymentManagement() {
     }
   }
 
-  // Función para actualizar un pago existente
+  // Function to update an existing payment
   const updatePago = async (pagoData: Pago) => {
     try {
       setIsSubmitting(true)
       await makeRequest("PUT", "https://localhost:7213/UpdatePago", pagoData)
 
-      // Recargar la lista de pagos
-      await fetchPagos()
+      // Reload payment list
+      await fetchDeudas() // Also reload debts in case there are changes in the relationship
 
-      // Mostrar mensaje de éxito
+      // Find the debt associated with this payment and check if it's fully paid
+      const debtForPayment = deudas.find((d) => d.id_deuda === pagoData.id_deuda)
+      if (debtForPayment) {
+        await updateDebtStatus(debtForPayment)
+      }
+
+      // Show success message
       setSuccessMessage("Pago actualizado correctamente")
       setTimeout(() => setSuccessMessage(""), 3000)
 
-      // Cerrar el modal
+      // Close modal
       setShowPaymentModal(false)
       setEditingPayment(null)
     } catch (error) {
@@ -658,22 +893,33 @@ export default function PaymentManagement() {
     }
   }
 
-  // Función para eliminar un pago
+  // Function to delete a payment
   const deletePago = async () => {
     if (!itemToDelete) return
 
     try {
       setIsSubmitting(true)
+
+      // Store the debt ID before deleting the payment
+      const debtId = itemToDelete.id_deuda
+
+      // Delete payment
       await makeRequest("DELETE", `https://localhost:7213/DeletePago/${itemToDelete.id_pago}`)
 
-      // Recargar la lista de pagos
-      await fetchPagos()
+      // Reload payment and debt lists
+      await fetchDeudas()
 
-      // Mostrar mensaje de éxito
+      // Find the debt and update its status if needed
+      const debtForPayment = deudas.find((d) => d.id_deuda === debtId)
+      if (debtForPayment) {
+        await updateDebtStatus(debtForPayment)
+      }
+
+      // Show success message
       setSuccessMessage("Pago eliminado correctamente")
       setTimeout(() => setSuccessMessage(""), 3000)
 
-      // Cerrar el modal
+      // Close modal
       setShowDeleteModal(false)
       setItemToDelete(null)
     } catch (error) {
@@ -684,20 +930,20 @@ export default function PaymentManagement() {
     }
   }
 
-  // Función para crear un nuevo tipo de pago
+  // Function to create a new payment type
   const createTipoPago = async (tipoData: TipoPago) => {
     try {
       setIsSubmitting(true)
       await makeRequest("POST", "https://localhost:7213/AddTipoPago", tipoData)
 
-      // Recargar la lista de tipos de pago
+      // Reload payment type list
       await fetchTiposPago()
 
-      // Mostrar mensaje de éxito
+      // Show success message
       setSuccessMessage("Tipo de pago creado correctamente")
       setTimeout(() => setSuccessMessage(""), 3000)
 
-      // Cerrar el modal
+      // Close modal
       setShowPaymentTypeModal(false)
       setEditingPaymentType(null)
     } catch (error) {
@@ -708,20 +954,20 @@ export default function PaymentManagement() {
     }
   }
 
-  // Función para actualizar un tipo de pago existente
+  // Function to update an existing payment type
   const updateTipoPago = async (tipoData: TipoPago) => {
     try {
       setIsSubmitting(true)
       await makeRequest("PUT", "https://localhost:7213/PutTipoPago", tipoData)
 
-      // Recargar la lista de tipos de pago
+      // Reload payment type list
       await fetchTiposPago()
 
-      // Mostrar mensaje de éxito
+      // Show success message
       setSuccessMessage("Tipo de pago actualizado correctamente")
       setTimeout(() => setSuccessMessage(""), 3000)
 
-      // Cerrar el modal
+      // Close modal
       setShowPaymentTypeModal(false)
       setEditingPaymentType(null)
     } catch (error) {
@@ -732,7 +978,7 @@ export default function PaymentManagement() {
     }
   }
 
-  // Función para eliminar un tipo de pago
+  // Function to delete a payment type
   const deleteTipoPago = async () => {
     if (!itemToDelete) return
 
@@ -740,14 +986,14 @@ export default function PaymentManagement() {
       setIsSubmitting(true)
       await makeRequest("DELETE", `https://localhost:7213/DeleteTipoPago/${itemToDelete.id_tipo}`)
 
-      // Recargar la lista de tipos de pago
+      // Reload payment type list
       await fetchTiposPago()
 
-      // Mostrar mensaje de éxito
+      // Show success message
       setSuccessMessage("Tipo de pago eliminado correctamente")
       setTimeout(() => setSuccessMessage(""), 3000)
 
-      // Cerrar el modal
+      // Close modal
       setShowDeleteModal(false)
       setItemToDelete(null)
     } catch (error) {
@@ -758,47 +1004,47 @@ export default function PaymentManagement() {
     }
   }
 
-  // Función para manejar el envío del formulario de pago
-  const handlePaymentSubmit = (formData: Pago) => {
-    // Verificar si el estado es válido para la fecha seleccionada
+  // Function to handle debt form submission
+  const handleDebtSubmit = (formData: Deuda) => {
+    // Set default estado based on date
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    const fechaVencimiento = new Date(formData.fecha)
+    const fechaVencimiento = new Date(formData.fecha_vencimiento)
     fechaVencimiento.setHours(0, 0, 0, 0)
 
-    let estadoValido = true
-
-    // Si la fecha es pasada (anterior a hoy)
+    // Set estado based on date
     if (fechaVencimiento < today) {
-      if (formData.estado === "Pendiente") {
-        estadoValido = false
-      }
-    }
-    // Si la fecha es hoy o futura
-    else {
-      if (formData.estado === "Vencido") {
-        estadoValido = false
-      }
+      formData.estado = "Vencido"
+    } else {
+      formData.estado = "Pendiente"
     }
 
-    if (!estadoValido) {
-      setErrorMessage("El estado seleccionado no es válido para la fecha de vencimiento")
-      setTimeout(() => setErrorMessage(""), 5000)
-      return
+    if (editingDebt) {
+      updateDeuda({
+        ...formData,
+        id_deuda: editingDebt.id_deuda,
+      })
+    } else {
+      createDeuda(formData)
     }
+  }
 
+  // Function to handle payment form submission
+  const handlePaymentSubmit = (formData: Pago) => {
     if (editingPayment) {
       updatePago({
         ...formData,
         id_pago: editingPayment.id_pago,
+        id_deuda: editingPayment.id_deuda,
+        id_alumno: editingPayment.id_alumno,
       })
     } else {
       createPago(formData)
     }
   }
 
-  // Función para manejar el envío del formulario de tipo de pago
+  // Function to handle payment type form submission
   const handlePaymentTypeSubmit = (formData: TipoPago) => {
     if (editingPaymentType) {
       updateTipoPago({
@@ -810,68 +1056,69 @@ export default function PaymentManagement() {
     }
   }
 
-  // Función para manejar la eliminación
+  // Function to handle deletion
   const handleDelete = () => {
     if (deleteType === "payment") {
       deletePago()
+    } else if (deleteType === "debt") {
+      deleteDeuda()
     } else {
       deleteTipoPago()
     }
   }
 
-  // Función para notificar pagos vencidos
-  const handleNotifyLatePayments = async () => {
+  // Function to notify overdue debts
+  const handleNotifyLateDebts = async () => {
     try {
       setIsSubmitting(true)
 
-      // Obtener todos los alumnos con pagos vencidos
-      const alumnosConPagosVencidos = new Set()
+      // Get all students with overdue debts
+      const alumnosConDeudasVencidas = new Set()
 
-      // Recopilar información de pagos vencidos por alumno
-      const pagosPorAlumnoVencidos = {}
+      // Collect information about overdue debts by student
+      const deudasPorAlumnoVencidas = {}
 
-      Object.entries(pagosPorAlumno).forEach(([idAlumno, pagosAlumno]) => {
-        const pagosVencidos = pagosAlumno.filter((pago) => pago.estado === "Vencido")
+      Object.entries(deudasPorAlumno).forEach(([idAlumno, deudasAlumno]) => {
+        const deudasVencidas = deudasAlumno.filter((deuda) => deuda.estado === "Vencido")
 
-        if (pagosVencidos.length > 0) {
-          alumnosConPagosVencidos.add(Number(idAlumno))
-          pagosPorAlumnoVencidos[idAlumno] = pagosVencidos
+        if (deudasVencidas.length > 0) {
+          alumnosConDeudasVencidas.add(Number(idAlumno))
+          deudasPorAlumnoVencidas[idAlumno] = deudasVencidas
         }
       })
 
-      // Si no hay alumnos con pagos vencidos, mostrar mensaje y salir
-      if (alumnosConPagosVencidos.size === 0) {
-        setSuccessMessage("No hay alumnos con pagos vencidos para notificar")
+      // If there are no students with overdue debts, show message and exit
+      if (alumnosConDeudasVencidas.size === 0) {
+        setSuccessMessage("No hay alumnos con deudas vencidas para notificar")
         setShowNotifyModal(false)
         setTimeout(() => setSuccessMessage(""), 3000)
         return
       }
 
-      // Preparar los datos para enviar correos
-      const alumnosData = Array.from(alumnosConPagosVencidos).map((idAlumno) => {
+      // Prepare data to send emails
+      const alumnosData = Array.from(alumnosConDeudasVencidas).map((idAlumno) => {
         const alumno = alumnos.find((a) => a.id_usuario === Number(idAlumno))
-        const pagosVencidos = pagosPorAlumnoVencidos[idAlumno]
+        const deudasVencidas = deudasPorAlumnoVencidas[idAlumno]
 
         return {
           id_alumno: idAlumno,
           nombre: alumno ? `${alumno.nombre} ${alumno.apellido}` : "Alumno",
           correo: alumno ? alumno.correo : "",
-          pagos: pagosVencidos.map((pago) => ({
-            id_pago: pago.id_pago,
-            monto: pago.monto,
-            fecha: pago.fecha,
-            tipo: getTipoPagoName(pago.id_tipo),
+          deudas: deudasVencidas.map((deuda) => ({
+            id_deuda: deuda.id_deuda,
+            monto: deuda.monto,
+            fecha_vencimiento: deuda.fecha_vencimiento,
           })),
         }
       })
 
       console.log("Enviando notificaciones a los siguientes alumnos:", alumnosData)
 
-      // Aquí iría la lógica para enviar correos electrónicos
-      // Simulamos el envío con un tiempo de espera
+      // Here would be the logic to send emails
+      // We simulate sending with a wait time
       await new Promise((resolve) => setTimeout(resolve, 1500))
 
-      // Mostrar detalles de los correos enviados
+      // Show details of sent emails
       const correosEnviados = alumnosData.filter((a) => a.correo).length
       const alumnosSinCorreo = alumnosData.filter((a) => !a.correo).length
 
@@ -891,19 +1138,19 @@ export default function PaymentManagement() {
     }
   }
 
-  // Función para obtener el nombre del tipo de pago
+  // Function to get payment type name
   const getTipoPagoName = (id_tipo: number) => {
     const tipo = tiposPago.find((t) => t.id_tipo === id_tipo)
     return tipo ? tipo.tipo : "Desconocido"
   }
 
-  // Función para obtener el nombre completo del alumno
+  // Function to get student full name
   const getAlumnoName = (id_alumno: number) => {
     const alumno = alumnos.find((a) => a.id_usuario === id_alumno)
     return alumno ? `${alumno.nombre} ${alumno.apellido}` : "Desconocido"
   }
 
-  // Función para obtener el color del badge según el estado
+  // Function to get badge color based on status
   const getStatusBadgeColor = (estado: string) => {
     switch (estado) {
       case "Pagado":
@@ -917,7 +1164,7 @@ export default function PaymentManagement() {
     }
   }
 
-  // Función para obtener el icono del badge según el estado
+  // Function to get badge icon based on status
   const getStatusBadgeIcon = (estado: string) => {
     switch (estado) {
       case "Pagado":
@@ -931,7 +1178,7 @@ export default function PaymentManagement() {
     }
   }
 
-  // Filtrar alumnos según el término de búsqueda
+  // Filter students based on search term
   const filteredAlumnos = alumnos.filter((alumno) => {
     const fullName = `${alumno.nombre} ${alumno.apellido}`.toLowerCase()
     const dni = alumno.dni.toString()
@@ -939,8 +1186,193 @@ export default function PaymentManagement() {
     return fullName.includes(searchTerm.toLowerCase()) || dni.includes(searchTerm)
   })
 
-  // Contar pagos vencidos
-  const countVencidos = pagos.filter((pago) => pago.estado === "Vencido").length
+  // Count overdue debts
+  const countVencidos = deudas.filter((deuda) => deuda.estado === "Vencido").length
+
+  // Add a function to calculate total debt for a student
+  const calculateTotalDeuda = (alumnoId: number) => {
+    const alumnoDebts = deudasPorAlumno[alumnoId] || []
+    return alumnoDebts.reduce((total, deuda) => {
+      // Add to total only if debt is not paid
+      if (deuda.estado !== "Pagado") {
+        return total + deuda.monto
+      }
+      return total
+    }, 0)
+  }
+
+  // Add a function to calculate total payments made against a debt
+  const calculateTotalPagos = (deudaId: number) => {
+    const pagosDeuda = pagosPorDeuda[deudaId] || []
+    return pagosDeuda.reduce((total, pago) => total + pago.monto, 0)
+  }
+
+  // Add a function to calculate remaining debt amount
+  const calculateRemainingDebt = (deuda: Deuda) => {
+    const totalPagado = calculateTotalPagos(deuda.id_deuda)
+    return Math.max(0, deuda.monto - totalPagado)
+  }
+
+  
+// Function to update debt status based on payments
+const updateDebtStatus = useCallback(async (deuda: Deuda) => {
+  try {
+    const totalPagado = calculateTotalPagos(deuda.id_deuda);
+  
+  // Si el total pagado es igual o mayor al monto de la deuda y el estado no es "Pagado", actualizar
+  if (totalPagado >= deuda.monto && deuda.estado !== "Pagado") {
+    const updatedDeuda = { ...deuda, estado: "Pagado" };
+    await makeRequest("PUT", "https://localhost:7213/UpdateDeuda", updatedDeuda);
+    
+    // Refresh debts list
+    await fetchDeudas();
+  }
+} catch (error) {
+  console.error("Error updating debt status:", error);
+}
+}, [makeRequest, fetchDeudas]);
+
+  // Add a new component for displaying all payments for a specific debt
+  const DebtPaymentsModal = ({
+    isOpen,
+    onClose,
+    deuda,
+    pagos,
+    setEditingPayment,
+    setSelectedDebtForPayment,
+    setShowPaymentModal,
+    setItemToDelete,
+    setDeleteType,
+    setShowDeleteModal,
+  }) => {
+    if (!isOpen || !deuda) return null
+
+    const totalPagado = pagos.reduce((sum, pago) => sum + pago.monto, 0)
+    
+
+    return (
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Pagos de la Deuda</h2>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="bg-blue-50 p-4 rounded-md mb-4">
+            <h3 className="font-medium text-blue-800 mb-2">Detalles de la deuda</h3>
+            <div className="grid grid-cols-2 gap-2">
+              <p className="text-sm text-blue-700">Tipo:</p>
+              <p className="text-sm font-medium">{getTipoPagoName(deuda.id_tipo)}</p>
+
+              <p className="text-sm text-blue-700">Monto total:</p>
+              <p className="text-sm font-medium">${deuda.monto.toLocaleString()}</p>
+
+              <p className="text-sm text-blue-700">Pagado:</p>
+              <p className="text-sm font-medium text-green-600">${totalPagado.toLocaleString()}</p>
+
+          
+
+              <p className="text-sm text-blue-700">Vencimiento:</p>
+              <p className="text-sm font-medium">{formatDate(deuda.fecha_vencimiento)}</p>
+
+              <p className="text-sm text-blue-700">Estado:</p>
+              <p className="text-sm">
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(deuda.estado)}`}
+                >
+                  {getStatusBadgeIcon(deuda.estado)}
+                  {deuda.estado}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <h3 className="font-medium text-gray-700 mb-2">Historial de pagos</h3>
+          {pagos.length === 0 ? (
+            <div className="text-center py-6 text-gray-500 border rounded-md">
+              No hay pagos registrados para esta deuda.
+            </div>
+          ) : (
+            <div className="border rounded-md overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Monto</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {pagos.map((pago) => (
+                    <tr key={pago.id_pago}>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{formatDate(pago.fecha)}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                        ${pago.monto.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex justify-end space-x-2">
+                          <button
+                            onClick={() => {
+                              setEditingPayment(pago)
+                              setSelectedDebtForPayment(deuda)
+                              setShowPaymentModal(true)
+                              onClose()
+                            }}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setItemToDelete(pago)
+                              setDeleteType("payment")
+                              setShowDeleteModal(true)
+                              onClose()
+                            }}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="mt-4 flex justify-between">
+            <div>
+              {deuda.monto > 0 && (
+                <button
+                  onClick={() => {
+                    setSelectedDebtForPayment(deuda)
+                    setEditingPayment(null)
+                    setShowPaymentModal(true)
+                    onClose()
+                  }}
+                  className="flex items-center px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Registrar Pago
+                </button>
+              )}
+            </div>
+            <button onClick={onClose} className="px-4 py-2 border rounded-md hover:bg-gray-50">
+              Cerrar
+            </button>
+          </div>
+        </div>
+      </Modal>
+    )
+  }
+
+  // Add state for the debt payments modal
+  const [showDebtPaymentsModal, setShowDebtPaymentsModal] = useState(false)
+  const [selectedDebtForDetails, setSelectedDebtForDetails] = useState<Deuda | null>(null)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -977,7 +1409,6 @@ export default function PaymentManagement() {
                 </button>
                 <button
                   onClick={() => {
-                    console.log("Abriendo modal de notificación")
                     setShowNotifyModal(true)
                   }}
                   className="flex items-center px-4 py-2 border rounded-md hover:bg-gray-50"
@@ -987,20 +1418,20 @@ export default function PaymentManagement() {
                 </button>
                 <button
                   onClick={() => {
-                    setEditingPayment(null)
+                    setEditingDebt(null)
                     setSelectedAlumno(null)
-                    setShowPaymentModal(true)
+                    setShowDebtModal(true)
                   }}
                   className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Registrar Pago
+                  Registrar Deuda
                 </button>
               </div>
             </div>
 
-            {/* Filtros y búsqueda */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            {/* Filters and search */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="relative">
                 <input
                   type="text"
@@ -1024,38 +1455,23 @@ export default function PaymentManagement() {
                   <option value="Vencido">Vencidos</option>
                 </select>
               </div>
-
-              <div>
-                <select
-                  value={selectedType}
-                  onChange={(e) => setSelectedType(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md"
-                >
-                  <option value="all">Todos los tipos</option>
-                  {tiposPago.map((tipo) => (
-                    <option key={tipo.id_tipo} value={tipo.id_tipo}>
-                      {tipo.tipo}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
 
-            {/* Estado de carga */}
+            {/* Loading state */}
             {isLoading ? (
               <div className="flex justify-center items-center py-12">
                 <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-                <span className="ml-2 text-gray-600">Cargando pagos...</span>
+                <span className="ml-2 text-gray-600">Cargando datos...</span>
               </div>
             ) : (
-              /* Lista de tipos de pago */
+              /* Payment type list */
               <div className="mb-8">
                 <h2 className="text-lg font-semibold mb-4">Tipos de Pago</h2>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                        <th hidden className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
                         <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
                       </tr>
@@ -1063,7 +1479,7 @@ export default function PaymentManagement() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {tiposPago.map((tipo) => (
                         <tr key={tipo.id_tipo}>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{tipo.id_tipo}</td>
+                          <td hidden className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{tipo.id_tipo}</td>
                           <td className="px-4 py-2 whitespace-text-gray-900">{tipo.tipo}</td>
                           <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex justify-end space-x-2">
@@ -1096,10 +1512,10 @@ export default function PaymentManagement() {
               </div>
             )}
 
-            {/* Lista de alumnos y pagos */}
+            {/* Student and debt list */}
             {!isLoading && (
               <div className="space-y-4">
-                <h2 className="text-lg font-semibold mb-4">Pagos por Alumno</h2>
+                <h2 className="text-lg font-semibold mb-4">Deudas por Alumno</h2>
 
                 {filteredAlumnos.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
@@ -1108,17 +1524,16 @@ export default function PaymentManagement() {
                 ) : (
                   filteredAlumnos
                     .map((alumno) => {
-                      const alumnoPayments = pagosPorAlumno[alumno.id_usuario] || []
+                      const alumnoDebts = deudasPorAlumno[alumno.id_usuario] || []
 
-                      // Filtrar pagos según los filtros seleccionados
-                      const filteredPayments = alumnoPayments.filter((pago) => {
-                        const matchesStatus = selectedStatus === "all" || pago.estado === selectedStatus
-                        const matchesType = selectedType === "all" || pago.id_tipo.toString() === selectedType
-                        return matchesStatus && matchesType
+                      // Filter debts based on selected filters
+                      const filteredDebts = alumnoDebts.filter((deuda) => {
+                        const matchesStatus = selectedStatus === "all" || deuda.estado === selectedStatus
+                        return matchesStatus
                       })
 
-                      // Si no hay pagos que coincidan con los filtros, no mostrar este alumno
-                      if (filteredPayments.length === 0 && (selectedStatus !== "all" || selectedType !== "all")) {
+                      // If there are no debts that match the filters, don't show this student
+                      if (filteredDebts.length === 0 && selectedStatus !== "all") {
                         return null
                       }
 
@@ -1130,23 +1545,26 @@ export default function PaymentManagement() {
                                 {alumno.nombre} {alumno.apellido}
                               </h3>
                               <p className="text-sm text-gray-600">DNI: {alumno.dni}</p>
+                              <p className="text-sm font-semibold text-red-600">
+                                Deuda Total: ${calculateTotalDeuda(alumno.id_usuario).toLocaleString()}
+                              </p>
                             </div>
                             <button
                               onClick={() => {
                                 setSelectedAlumno(alumno)
-                                setEditingPayment(null)
-                                setShowPaymentModal(true)
+                                setEditingDebt(null)
+                                setShowDebtModal(true)
                               }}
                               className="mt-2 sm:mt-0 flex items-center px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                             >
                               <Plus className="w-4 h-4 mr-1" />
-                              Nuevo Pago
+                              Nueva Deuda
                             </button>
                           </div>
 
-                          {filteredPayments.length === 0 ? (
+                          {filteredDebts.length === 0 ? (
                             <div className="text-center py-4 text-gray-500">
-                              No hay pagos registrados para este alumno.
+                              No hay deudas registradas para este alumno.
                             </div>
                           ) : (
                             <div className="overflow-x-auto">
@@ -1154,10 +1572,14 @@ export default function PaymentManagement() {
                                 <thead>
                                   <tr>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                      Tipo
+                                      Monto
                                     </th>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                      Monto
+                                      Pagado
+                                    </th>
+                                   
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                      Tipo
                                     </th>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                                       Vencimiento
@@ -1165,68 +1587,129 @@ export default function PaymentManagement() {
                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                                       Estado
                                     </th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                      Pagos
+                                    </th>
                                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
                                       Acciones
                                     </th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
-                                  {filteredPayments.map((pago) => (
-                                    <tr key={pago.id_pago}>
-                                      <td className="px-4 py-2">
-                                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                          {getTipoPagoName(pago.id_tipo)}
-                                        </span>
-                                      </td>
-                                      <td className="px-4 py-2 text-sm text-gray-900">
-                                        ${pago.monto.toLocaleString()}
-                                      </td>
-                                      <td className="px-4 py-2 text-sm text-gray-900">{formatDate(pago.fecha)}</td>
-                                      <td className="px-4 py-2">
-                                        <span
-                                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(pago.estado)}`}
-                                        >
-                                          {getStatusBadgeIcon(pago.estado)}
-                                          {pago.estado}
-                                        </span>
-                                      </td>
-                                      <td className="px-4 py-2 text-right">
-                                        <div className="flex justify-end space-x-2">
-                                          <button
-                                            onClick={() => {
-                                              setEditingPayment(pago)
-                                              setSelectedAlumno(alumno)
-                                              setShowPaymentModal(true)
-                                            }}
-                                            className="text-blue-600 hover:text-blue-900"
+                                  {filteredDebts.map((deuda) => {
+                                    const pagosDeuda = pagosPorDeuda[deuda.id_deuda] || []
+                                    const totalPagado = calculateTotalPagos(deuda.id_deuda)
+                                  
+
+                                    return (
+                                      <tr key={deuda.id_deuda}>
+                                        <td className="px-4 py-2 text-sm text-gray-900">
+                                          ${deuda.monto.toLocaleString()}
+                                        </td>
+                                        <td className="px-4 py-2 text-sm text-green-600">
+                                          ${totalPagado.toLocaleString()}
+                                        </td>
+                                       
+                                        <td className="px-4 py-2 text-sm text-gray-900">
+                                          {getTipoPagoName(deuda.id_tipo)}
+                                        </td>
+                                        <td className="px-4 py-2 text-sm text-gray-900">
+                                          {formatDate(deuda.fecha_vencimiento)}
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          <span
+                                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(deuda.estado)}`}
                                           >
-                                            <Pencil className="w-4 h-4" />
-                                          </button>
-                                          <button
-                                            onClick={() => {
-                                              setItemToDelete(pago)
-                                              setDeleteType("payment")
-                                              setShowDeleteModal(true)
-                                            }}
-                                            className="text-red-600 hover:text-red-900"
-                                          >
-                                            <Trash2 className="w-4 h-4" />
-                                          </button>
-                                          {pago.estado === "Pagado" && (
+                                            {getStatusBadgeIcon(deuda.estado)}
+                                            {deuda.estado}
+                                          </span>
+                                        </td>
+                                        <td className="px-4 py-2 text-sm">
+                                          {pagosDeuda.length > 0 ? (
                                             <button
-                                              className="text-blue-600 hover:text-blue-800"
                                               onClick={() => {
-                                                /* Lógica para descargar comprobante */
-                                                alert("Descargando comprobante...")
+                                                setSelectedDebtForDetails(deuda)
+                                                setShowDebtPaymentsModal(true)
                                               }}
+                                              className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded hover:bg-blue-200"
                                             >
-                                              <Download className="w-4 h-4" />
+                                              <CreditCard className="w-3 h-3 mr-1" />
+                                              Ver pagos ({pagosDeuda.length})
+                                            </button>
+                                          ) : (
+                                            <button
+                                              onClick={() => {
+                                                setSelectedDebtForPayment(deuda)
+                                                setEditingPayment(null)
+                                                setShowPaymentModal(true)
+                                              }}
+                                              className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700"
+                                            >
+                                              <CreditCard className="w-3 h-3 mr-1" />
+                                              Pagar
                                             </button>
                                           )}
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  ))}
+                                        </td>
+                                        <td className="px-4 py-2 text-right">
+                                          <div className="flex justify-end space-x-2">
+                                            <button
+                                              onClick={() => {
+                                                setEditingDebt(deuda)
+                                                setSelectedAlumno(alumno)
+                                                setShowDebtModal(true)
+                                              }}
+                                              className="text-blue-600 hover:text-blue-900"
+                                            >
+                                              <Pencil className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                              onClick={() => {
+                                                setItemToDelete(deuda)
+                                                setDeleteType("debt")
+                                                setShowDeleteModal(true)
+                                              }}
+                                              className="text-red-600 hover:text-red-900"
+                                            >
+                                              <Trash2 className="w-4 h-4" />
+                                            </button>
+                                            {deuda.monto > 0 && (
+                                              <button
+                                                onClick={() => {
+                                                  setSelectedDebtForPayment(deuda)
+                                                  setEditingPayment(null)
+                                                  setShowPaymentModal(true)
+                                                }}
+                                                className="text-green-600 hover:text-green-800"
+                                              >
+                                                <CreditCard className="w-4 h-4" />
+                                              </button>
+                                            )}
+                                            {pagosDeuda.length > 0 && (
+                                              <button
+                                                className="text-blue-600 hover:text-blue-800"
+                                                onClick={() => {
+                                                  /* Logic to download payment receipt */
+                                                  alert("Descargando comprobante de pago...")
+                                                }}
+                                              >
+                                                <Download className="w-4 h-4" />
+                                              </button>
+                                            )}
+                                            <button
+                                              onClick={() => {
+                                                setSelectedDebtForDetails(deuda)
+                                                setShowDebtPaymentsModal(true)
+                                              }}
+                                              className="text-blue-600 hover:text-blue-800"
+                                              title="Ver todos los pagos"
+                                            >
+                                              <CreditCard className="w-4 h-4" />
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )
+                                  })}
                                 </tbody>
                               </table>
                             </div>
@@ -1234,45 +1717,44 @@ export default function PaymentManagement() {
                         </div>
                       )
                     })
-                    .filter(Boolean) // Filtrar los elementos null
+                    .filter(Boolean) // Filter out null elements
                 )}
 
                 {filteredAlumnos.length > 0 &&
                   filteredAlumnos.every((alumno) => {
-                    const alumnoPayments = pagosPorAlumno[alumno.id_usuario] || []
-                    const filteredPayments = alumnoPayments.filter((pago) => {
-                      const matchesStatus = selectedStatus === "all" || pago.estado === selectedStatus
-                      const matchesType = selectedType === "all" || pago.id_tipo.toString() === selectedType
-                      return matchesStatus && matchesType
+                    const alumnoDebts = deudasPorAlumno[alumno.id_usuario] || []
+                    const filteredDebts = alumnoDebts.filter((deuda) => {
+                      const matchesStatus = selectedStatus === "all" || deuda.estado === selectedStatus
+                      return matchesStatus
                     })
-                    return filteredPayments.length === 0
+                    return filteredDebts.length === 0
                   }) &&
-                  (selectedStatus !== "all" || selectedType !== "all") && (
+                  selectedStatus !== "all" && (
                     <div className="text-center py-8 text-gray-500">
-                      No hay pagos que coincidan con los filtros seleccionados.
+                      No hay deudas que coincidan con los filtros seleccionados.
                     </div>
                   )}
               </div>
             )}
           </div>
 
-          {/* Modal de registro/edición de pago */}
-          <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)}>
-            <PaymentForm
-              isEditing={!!editingPayment}
+          {/* Debt registration/editing modal */}
+          <Modal isOpen={showDebtModal} onClose={() => setShowDebtModal(false)}>
+            <DebtForm
+              isEditing={!!editingDebt}
               initialValues={
-                editingPayment
+                editingDebt
                   ? {
-                      ...editingPayment,
-                      id_alumno: selectedAlumno ? selectedAlumno.id_usuario : editingPayment.id_alumno,
+                      ...editingDebt,
+                      id_alumno: selectedAlumno ? selectedAlumno.id_usuario : editingDebt.id_alumno,
                     }
                   : {
-                      ...initialPayment,
+                      ...initialDebt,
                       id_alumno: selectedAlumno ? selectedAlumno.id_usuario : 0,
                     }
               }
-              onSubmit={handlePaymentSubmit}
-              onCancel={() => setShowPaymentModal(false)}
+              onSubmit={handleDebtSubmit}
+              onCancel={() => setShowDebtModal(false)}
               isSubmitting={isSubmitting}
               alumnos={alumnos}
               tiposPago={tiposPago}
@@ -1281,7 +1763,36 @@ export default function PaymentManagement() {
             />
           </Modal>
 
-          {/* Modal de registro/edición de tipo de pago */}
+          {/* Payment registration/editing modal */}
+          <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)}>
+            <PaymentForm
+              isEditing={!!editingPayment}
+              initialValues={
+                editingPayment
+                  ? {
+                      ...editingPayment,
+                    }
+                  : {
+                      ...initialPayment,
+                      id_alumno: selectedDebtForPayment ? selectedDebtForPayment.id_alumno : 0,
+                      monto: selectedDebtForPayment ? selectedDebtForPayment.monto : 0,
+                      id_deuda: selectedDebtForPayment ? selectedDebtForPayment.id_deuda : 0,
+                    }
+              }
+              onSubmit={handlePaymentSubmit}
+              onCancel={() => {
+                setShowPaymentModal(false)
+                setSelectedDebtForPayment(null)
+              }}
+              isSubmitting={isSubmitting}
+              deuda={selectedDebtForPayment}
+              pagosPorDeuda={pagosPorDeuda}
+              calculateTotalPagos={calculateTotalPagos}
+              calculateRemainingDebt={calculateRemainingDebt}
+            />
+          </Modal>
+
+          {/* Payment type registration/editing modal */}
           <Modal isOpen={showPaymentTypeModal} onClose={() => setShowPaymentTypeModal(false)}>
             <PaymentTypeForm
               isEditing={!!editingPaymentType}
@@ -1292,7 +1803,7 @@ export default function PaymentManagement() {
             />
           </Modal>
 
-          {/* Modal de confirmación de eliminación */}
+          {/* Delete confirmation modal */}
           <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
             <DeleteConfirmation
               item={itemToDelete}
@@ -1303,29 +1814,29 @@ export default function PaymentManagement() {
             />
           </Modal>
 
-          {/* Modal de notificación a morosos */}
+          {/* Notification to debtors modal */}
           <Modal isOpen={showNotifyModal} onClose={() => setShowNotifyModal(false)}>
             <div className="p-6">
               <div className="flex items-center mb-4">
                 <Mail className="w-6 h-6 text-yellow-500 mr-2" />
-                <h2 className="text-xl font-bold">Notificar Pagos Vencidos</h2>
+                <h2 className="text-xl font-bold">Notificar Deudas Vencidas</h2>
               </div>
               <p className="text-gray-600 mb-6">
-                Se enviará un correo electrónico a todos los alumnos con pagos vencidos recordándoles sus obligaciones
+                Se enviará un correo electrónico a todos los alumnos con deudas vencidas recordándoles sus obligaciones
                 pendientes.
               </p>
               <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
                 <div className="flex">
                   <AlertCircle className="h-5 w-5 text-yellow-400 mr-2" />
                   <div>
-                    <p className="text-sm text-yellow-700">Hay {countVencidos} pagos vencidos en el sistema.</p>
+                    <p className="text-sm text-yellow-700">Hay {countVencidos} deudas vencidas en el sistema.</p>
                     <p className="text-sm text-yellow-700 mt-1">
                       {
-                        Object.entries(pagosPorAlumno).filter(([_, pagos]) =>
-                          pagos.some((pago) => pago.estado === "Vencido"),
+                        Object.entries(deudasPorAlumno).filter(([_, deudas]) =>
+                          deudas.some((deuda) => deuda.estado === "Vencido"),
                         ).length
                       }{" "}
-                      alumnos tienen pagos vencidos.
+                      alumnos tienen deudas vencidas.
                     </p>
                   </div>
                 </div>
@@ -1337,25 +1848,25 @@ export default function PaymentManagement() {
                     <tr>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Alumno</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                        Pagos Vencidos
+                        Deudas Vencidas
                       </th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {Object.entries(pagosPorAlumno)
-                      .filter(([_, pagos]) => pagos.some((pago) => pago.estado === "Vencido"))
-                      .map(([idAlumno, pagos]) => {
+                    {Object.entries(deudasPorAlumno)
+                      .filter(([_, deudas]) => deudas.some((deuda) => deuda.estado === "Vencido"))
+                      .map(([idAlumno, deudas]) => {
                         const alumno = alumnos.find((a) => a.id_usuario === Number(idAlumno))
-                        const pagosVencidos = pagos.filter((pago) => pago.estado === "Vencido")
-                        const totalVencido = pagosVencidos.reduce((sum, pago) => sum + pago.monto, 0)
+                        const deudasVencidas = deudas.filter((deuda) => deuda.estado === "Vencido")
+                        const totalVencido = deudasVencidas.reduce((sum, deuda) => sum + deuda.monto, 0)
 
                         return (
                           <tr key={idAlumno}>
                             <td className="px-4 py-2 whitespace-nowrap text-sm">
                               {alumno ? `${alumno.nombre} ${alumno.apellido}` : "Alumno desconocido"}
                             </td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm">{pagosVencidos.length}</td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm">{deudasVencidas.length}</td>
                             <td className="px-4 py-2 whitespace-nowrap text-sm">${totalVencido.toLocaleString()}</td>
                           </tr>
                         )
@@ -1373,7 +1884,7 @@ export default function PaymentManagement() {
                   Cancelar
                 </button>
                 <button
-                  onClick={handleNotifyLatePayments}
+                  onClick={handleNotifyLateDebts}
                   className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                   disabled={isSubmitting || countVencidos === 0}
                 >
@@ -1392,6 +1903,20 @@ export default function PaymentManagement() {
               </div>
             </div>
           </Modal>
+
+          {/* Debt payments modal */}
+          <DebtPaymentsModal
+            isOpen={showDebtPaymentsModal}
+            onClose={() => setShowDebtPaymentsModal(false)}
+            deuda={selectedDebtForDetails}
+            pagos={selectedDebtForDetails ? pagosPorDeuda[selectedDebtForDetails.id_deuda] || [] : []}
+            setEditingPayment={setEditingPayment}
+            setSelectedDebtForPayment={setSelectedDebtForPayment}
+            setShowPaymentModal={setShowPaymentModal}
+            setItemToDelete={setItemToDelete}
+            setDeleteType={setDeleteType}
+            setShowDeleteModal={setShowDeleteModal}
+          />
         </div>
       </div>
     </div>
