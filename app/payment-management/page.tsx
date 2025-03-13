@@ -1070,36 +1070,34 @@ export default function PaymentManagement() {
   // Function to notify overdue debts
   const handleNotifyLateDebts = async () => {
     try {
-      setIsSubmitting(true)
-
-      // Get all students with overdue debts
-      const alumnosConDeudasVencidas = new Set()
-
-      // Collect information about overdue debts by student
-      const deudasPorAlumnoVencidas = {}
-
+      setIsSubmitting(true);
+  
+      // Obtener alumnos con deudas vencidas
+      const alumnosConDeudasVencidas = new Set();
+      const deudasPorAlumnoVencidas = {};
+  
       Object.entries(deudasPorAlumno).forEach(([idAlumno, deudasAlumno]) => {
-        const deudasVencidas = deudasAlumno.filter((deuda) => deuda.estado === "Vencido")
-
+        const deudasVencidas = deudasAlumno.filter((deuda) => deuda.estado === "Vencido");
+  
         if (deudasVencidas.length > 0) {
-          alumnosConDeudasVencidas.add(Number(idAlumno))
-          deudasPorAlumnoVencidas[idAlumno] = deudasVencidas
+          alumnosConDeudasVencidas.add(Number(idAlumno));
+          deudasPorAlumnoVencidas[idAlumno] = deudasVencidas;
         }
-      })
-
-      // If there are no students with overdue debts, show message and exit
+      });
+  
+      // Si no hay deudas vencidas, mostrar mensaje y salir
       if (alumnosConDeudasVencidas.size === 0) {
-        setSuccessMessage("No hay alumnos con deudas vencidas para notificar")
-        setShowNotifyModal(false)
-        setTimeout(() => setSuccessMessage(""), 3000)
-        return
+        setSuccessMessage("No hay alumnos con deudas vencidas para notificar");
+        setShowNotifyModal(false);
+        setTimeout(() => setSuccessMessage(""), 3000);
+        return;
       }
-
-      // Prepare data to send emails
+  
+      // Preparar datos para enviar al backend
       const alumnosData = Array.from(alumnosConDeudasVencidas).map((idAlumno) => {
-        const alumno = alumnos.find((a) => a.id_usuario === Number(idAlumno))
-        const deudasVencidas = deudasPorAlumnoVencidas[idAlumno]
-
+        const alumno = alumnos.find((a) => a.id_usuario === Number(idAlumno));
+        const deudasVencidas = deudasPorAlumnoVencidas[idAlumno];
+  
         return {
           id_alumno: idAlumno,
           nombre: alumno ? `${alumno.nombre} ${alumno.apellido}` : "Alumno",
@@ -1109,34 +1107,44 @@ export default function PaymentManagement() {
             monto: deuda.monto,
             fecha_vencimiento: deuda.fecha_vencimiento,
           })),
+        };
+      });
+  
+      console.log("Enviando notificaciones a los siguientes alumnos:", alumnosData);
+  
+      // Enviar datos al backend
+      const response = await fetch("https://localhost:7213/NotificarVencimientos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         }
-      })
-
-      console.log("Enviando notificaciones a los siguientes alumnos:", alumnosData)
-
-      // Here would be the logic to send emails
-      // We simulate sending with a wait time
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      // Show details of sent emails
-      const correosEnviados = alumnosData.filter((a) => a.correo).length
-      const alumnosSinCorreo = alumnosData.filter((a) => !a.correo).length
-
-      let mensaje = `Se han enviado ${correosEnviados} notificaciones correctamente`
-      if (alumnosSinCorreo > 0) {
-        mensaje += `. ${alumnosSinCorreo} alumnos no tienen correo registrado.`
+      });
+  
+      if (!response.ok) {
+        throw new Error("Error al enviar las notificaciones.");
       }
-
-      setSuccessMessage(mensaje)
-      setShowNotifyModal(false)
-      setTimeout(() => setSuccessMessage(""), 5000)
+  
+      const result = await response.json();
+  
+  
+      const alumnosSinCorreo = alumnosData.filter((a) => !a.correo).length;
+  
+      let mensaje = `Se han enviado las notificaciones correctamente`;
+      if (alumnosSinCorreo > 0) {
+        mensaje += `. ${alumnosSinCorreo} alumnos no tienen correo registrado.`;
+      }
+  
+      setSuccessMessage(mensaje);
+      setShowNotifyModal(false);
+      setTimeout(() => setSuccessMessage(""), 5000);
     } catch (error) {
-      console.error("Error al enviar notificaciones:", error)
-      setErrorMessage("Error al enviar las notificaciones: " + error.message)
+      console.error("Error al enviar notificaciones:", error);
+      setErrorMessage("Error al enviar las notificaciones: " + error.message);
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
+  
 
   // Function to get payment type name
   const getTipoPagoName = (id_tipo: number) => {
