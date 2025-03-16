@@ -19,7 +19,9 @@ interface Materia {
     1: Nota[]
     2: Nota[]
     3: Nota[]
+    4: Nota[]
   }
+  id_docente: number
   asistencia?: {
     total: number
     presentes: number
@@ -108,6 +110,7 @@ export default function AcademicInfo() {
 
         // 5. Obtener información de docentes
         const docentes = await fetchData(`https://localhost:7213/GetDocentes`)
+     
 
         // 6. Obtener las materias del alumno
         const materias = await fetchData(`https://localhost:7213/GetMateriasByAlumno?id_alumno=${userId}`)
@@ -116,7 +119,8 @@ export default function AcademicInfo() {
         const materiasConDetalles = await Promise.all(
           materias.map(async (materia: any) => {
             const id_materia = materia.id_materia
-
+            
+        
             // Obtener datos de asistencia
             const presentes = await fetchData(
               `https://localhost:7213/GetPresentesByMateriaAlumno/${id_materia}/${userId}`,
@@ -139,8 +143,10 @@ export default function AcademicInfo() {
               `https://localhost:7213/GetPromedioByMateriaAlumno/${id_materia}/${userId}`,
             )
 
-            // Encontrar el docente de esta materia
-            const docenteMateria = docentes.find((d: any) => d.id_materia === id_materia)
+         
+            // Encontrar el docente de esta materia, la materia tiene el id_docente
+            const docenteMateria = docentes.find((docente: any) => docente.id_usuario === materia.id_docente)
+            
 
             // Organizar las notas por trimestre
             // Asumiendo que notasMateria tiene una estructura como:
@@ -149,6 +155,9 @@ export default function AcademicInfo() {
               1: notasMateria.filter((n: any) => n.trimestre === 1),
               2: notasMateria.filter((n: any) => n.trimestre === 2),
               3: notasMateria.filter((n: any) => n.trimestre === 3),
+              // si es recuperatorio o final, agregarlo a un cuarto trimestre
+              4: notasMateria.filter((n: any) => n.trimestre === 0),
+             
             }
 
             // Calcular el total de clases
@@ -340,9 +349,12 @@ export default function AcademicInfo() {
                         <div>
                           <h4 className="text-sm font-medium text-gray-700 mb-2">Calificaciones</h4>
                           <div className="space-y-2">
-                            {[1, 2, 3].map((trimester) => (
+                            {[1, 2, 3, 4].map((trimester) => (
                               <div key={trimester} className="flex justify-between items-center">
-                                <span className="text-sm text-gray-600">{trimester}° Trimestre</span>
+                                {/* si es el trimestre cuatro pertenece a la instancia de recuperación */}
+                                <span className="text-sm text-gray-600">
+                                  {trimester === 4 ? "Recuperación" : `Trimestre ${trimester}`}
+                                </span>
                                 <div className="flex flex-wrap gap-2">
                                   {subject.notas &&
                                     subject.notas[trimester as keyof typeof subject.notas]?.map((grade, index) => (
