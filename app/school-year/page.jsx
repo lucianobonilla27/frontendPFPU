@@ -2,7 +2,51 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import Navbar from "../../components/navbar"
-import { PlusCircle, Pencil, Trash2, AlertCircle, Loader2 } from "lucide-react"
+import { PlusCircle, Pencil, Trash2, AlertCircle, Loader2, CheckCircle, X, Info } from 'lucide-react'
+
+// Componente de Notificación simple
+const Notification = ({ type, message, isVisible, onClose }) => {
+  useEffect(() => {
+    if (isVisible) {
+      const timer = setTimeout(() => {
+        onClose()
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [isVisible, onClose])
+
+  if (!isVisible) return null
+
+  const bgColors = {
+    success: "bg-green-100 border-green-400 text-green-700",
+    error: "bg-red-100 border-red-400 text-red-700",
+    info: "bg-blue-100 border-blue-400 text-blue-700",
+    warning: "bg-yellow-100 border-yellow-400 text-yellow-700"
+  }
+
+  const icons = {
+    success: <CheckCircle className="h-5 w-5" />,
+    error: <AlertCircle className="h-5 w-5" />,
+    info: <Info className="h-5 w-5" />,
+    warning: <AlertCircle className="h-5 w-5" />
+  }
+
+  return (
+    <div className={`fixed top-4 right-4 z-50 p-4 rounded-md border ${bgColors[type]} shadow-md max-w-md`}>
+      <div className="flex items-start">
+        <div className="flex-shrink-0 mr-3">
+          {icons[type]}
+        </div>
+        <div className="flex-1">
+          <p className="font-medium">{message}</p>
+        </div>
+        <button onClick={onClose} className="ml-4">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  )
+}
 
 // Componente Modal extraído
 const Modal = ({ isOpen, onClose, children }) => {
@@ -134,6 +178,30 @@ const GradeManagement = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // Estado para notificaciones
+  const [notification, setNotification] = useState({
+    visible: false,
+    type: "success",
+    message: ""
+  })
+
+  // Función para mostrar notificación
+  const showNotification = (type, message) => {
+    setNotification({
+      visible: true,
+      type,
+      message
+    })
+  }
+
+  // Función para cerrar notificación
+  const closeNotification = () => {
+    setNotification(prev => ({
+      ...prev,
+      visible: false
+    }))
+  }
 
   // Función para obtener todos los años
   const fetchGrades = useCallback(async () => {
@@ -151,6 +219,7 @@ const GradeManagement = () => {
     } catch (err) {
       console.error("Error fetching grades:", err)
       setError("No se pudieron cargar los años. Por favor, intenta de nuevo más tarde.")
+      showNotification("error", "No se pudieron cargar los años. Por favor, intenta de nuevo más tarde.")
     } finally {
       setLoading(false)
     }
@@ -177,6 +246,9 @@ const GradeManagement = () => {
         throw new Error(`Error: ${response.status}`)
       }
 
+      // Mostrar notificación de éxito
+      showNotification("success", `El año "${gradeName}" ha sido creado exitosamente.`)
+
       // Recargar la lista de años
       await fetchGrades()
 
@@ -185,6 +257,7 @@ const GradeManagement = () => {
     } catch (err) {
       console.error("Error creating grade:", err)
       setError("No se pudo crear el año. Por favor, intenta de nuevo.")
+      showNotification("error", "No se pudo crear el año. Por favor, intenta de nuevo.")
     } finally {
       setIsSubmitting(false)
     }
@@ -211,6 +284,9 @@ const GradeManagement = () => {
         throw new Error(`Error: ${response.status}`)
       }
 
+      // Mostrar notificación de éxito
+      showNotification("success", `El año ha sido actualizado exitosamente a "${gradeName}".`)
+
       // Recargar la lista de años
       await fetchGrades()
 
@@ -220,6 +296,7 @@ const GradeManagement = () => {
     } catch (err) {
       console.error("Error updating grade:", err)
       setError("No se pudo actualizar el año. Por favor, intenta de nuevo.")
+      showNotification("error", "No se pudo actualizar el año. Por favor, intenta de nuevo.")
     } finally {
       setIsSubmitting(false)
     }
@@ -239,6 +316,9 @@ const GradeManagement = () => {
         throw new Error(`Error: ${response.status}`)
       }
 
+      // Mostrar notificación de éxito
+      showNotification("success", `El año "${selectedGradeForDelete.anio}" ha sido eliminado exitosamente.`)
+
       // Recargar la lista de años
       await fetchGrades()
 
@@ -248,6 +328,7 @@ const GradeManagement = () => {
     } catch (err) {
       console.error("Error deleting grade:", err)
       setError("No se pudo eliminar el año. Por favor, intenta de nuevo.")
+      showNotification("error", "No se pudo eliminar el año. Por favor, intenta de nuevo.")
     } finally {
       setIsSubmitting(false)
     }
@@ -288,6 +369,15 @@ const GradeManagement = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
+      
+      {/* Componente de notificación */}
+      <Notification 
+        type={notification.type}
+        message={notification.message}
+        isVisible={notification.visible}
+        onClose={closeNotification}
+      />
+      
       <div className="container mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow">
           <div className="p-4 sm:p-6">
@@ -386,4 +476,3 @@ const GradeManagement = () => {
 }
 
 export default GradeManagement
-
