@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect, useCallback, useRef } from "react"
-import { Pencil, Trash2, PlusCircle, Loader2, AlertCircle } from "lucide-react"
+import { Pencil, Trash2, PlusCircle, Loader2, AlertCircle, CheckCircle, X, ToggleLeft, ToggleRight } from "lucide-react"
 
 // Definición de tipos según la estructura real de la API
 interface Alumno {
@@ -98,6 +98,45 @@ interface NuevoAlumno {
   matricula: number
   fecha_nac: string
   id_curso: number
+}
+
+// Interfaz para notificaciones
+interface Notification {
+  id: number
+  type: "success" | "error" | "info"
+  message: string
+}
+
+// Componente de notificación
+const NotificationItem = ({ notification, onClose }: { notification: Notification; onClose: (id: number) => void }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose(notification.id)
+    }, 5000)
+
+    return () => clearTimeout(timer)
+  }, [notification.id, onClose])
+
+  const bgColor =
+    notification.type === "success"
+      ? "bg-green-100 border-green-400 text-green-700"
+      : notification.type === "error"
+        ? "bg-red-100 border-red-400 text-red-700"
+        : "bg-blue-100 border-blue-400 text-blue-700"
+
+  const Icon = notification.type === "success" ? CheckCircle : notification.type === "error" ? AlertCircle : AlertCircle
+
+  return (
+    <div className={`${bgColor} border px-4 py-3 rounded relative mb-2`} role="alert">
+      <div className="flex items-center">
+        <Icon className="h-5 w-5 mr-2" />
+        <span className="block sm:inline">{notification.message}</span>
+        <button onClick={() => onClose(notification.id)} className="ml-auto pl-3">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  )
 }
 
 // Componente de formulario para alumnos
@@ -951,6 +990,10 @@ const UserManagement = () => {
   const [noMateriasAvailable, setNoMateriasAvailable] = useState(false)
   const [materiasSeleccionadasPorAnio, setMateriasSeleccionadasPorAnio] = useState<{ [key: number]: Materia[] }>({})
 
+  // Estado para notificaciones
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [notificationId, setNotificationId] = useState(0)
+
   // Actualizar el estado para incluir el usuario que se está editando
   const [editingUser, setEditingUser] = useState<Alumno | Teacher | Admin | null>(null)
   const [materiasDocente, setMateriasDocente] = useState<Materia[]>([])
@@ -962,6 +1005,9 @@ const UserManagement = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [userToDelete, setUserToDelete] = useState<number | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Estado para activar/desactivar usuario
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false)
 
   // Estado para formulario nuevo alumno con valores por defecto según la API
   const [nuevoAlumno, setNuevoAlumno] = useState<NuevoAlumno>({
@@ -1005,6 +1051,18 @@ const UserManagement = () => {
     activo: 1, // Valor por defecto
     telefono: "",
   })
+
+  // Función para añadir notificaciones
+  const addNotification = (type: "success" | "error" | "info", message: string) => {
+    const id = notificationId
+    setNotificationId((prev) => prev + 1)
+    setNotifications((prev) => [...prev, { id, type, message }])
+  }
+
+  // Función para eliminar notificaciones
+  const removeNotification = (id: number) => {
+    setNotifications((prev) => prev.filter((notification) => notification.id !== id))
+  }
 
   // Función genérica para hacer peticiones
   const makeRequest = useCallback(async (method: string, url: string, data: any = null): Promise<any> => {
@@ -1056,6 +1114,7 @@ const UserManagement = () => {
       } catch (err) {
         console.error("Error fetching años:", err)
         setError("No se pudieron cargar los años escolares. Verifica la conexión con el servidor.")
+        addNotification("error", "No se pudieron cargar los años escolares")
       } finally {
         setFetchingAnios(false)
       }
@@ -1085,6 +1144,7 @@ const UserManagement = () => {
       } catch (err) {
         console.error("Error fetching materias:", err)
         setError("No se pudieron cargar las materias. Verifica la conexión con el servidor.")
+        addNotification("error", "No se pudieron cargar las materias")
         setNoMateriasAvailable(true)
       } finally {
         setFetchingMaterias(false)
@@ -1107,6 +1167,7 @@ const UserManagement = () => {
       } catch (err) {
         console.error("Error fetching courses:", err)
         setError("No se pudieron cargar los cursos. Verifica la conexión con el servidor.")
+        addNotification("error", "No se pudieron cargar los cursos")
       } finally {
         setFetchingCursos(false)
       }
@@ -1126,6 +1187,7 @@ const UserManagement = () => {
       } catch (err) {
         console.error("Error fetching students:", err)
         setError("No se pudieron cargar los alumnos. Verifica la conexión con el servidor.")
+        addNotification("error", "No se pudieron cargar los alumnos")
       } finally {
         setFetchingAlumnos(false)
       }
@@ -1145,6 +1207,7 @@ const UserManagement = () => {
       } catch (err) {
         console.error("Error fetching teachers:", err)
         setError("No se pudieron cargar los docentes. Verifica la conexión con el servidor.")
+        addNotification("error", "No se pudieron cargar los docentes")
       } finally {
         setFetchingDocentes(false)
       }
@@ -1164,6 +1227,7 @@ const UserManagement = () => {
       } catch (err) {
         console.error("Error fetching administrators:", err)
         setError("No se pudieron cargar los administrativos. Verifica la conexión con el servidor.")
+        addNotification("error", "No se pudieron cargar los administrativos")
       } finally {
         setFetchingAdministrativos(false)
       }
@@ -1245,6 +1309,7 @@ const UserManagement = () => {
       } catch (err) {
         console.error("Error al cargar materias del docente:", err)
         setError("No se pudieron cargar las materias asignadas al docente.")
+        addNotification("error", "No se pudieron cargar las materias asignadas al docente")
         setMateriasDocente([])
         setSelectedSubjects([])
         setMateriasSeleccionadasPorAnio({})
@@ -1254,6 +1319,40 @@ const UserManagement = () => {
     },
     [makeRequest],
   )
+
+  // Función para activar/desactivar usuario
+  const toggleUserStatus = async (usuario: Alumno | Teacher | Admin) => {
+    try {
+      setIsTogglingStatus(true)
+      const isActive = usuario.activo === 1
+      const endpoint = isActive
+        ? `https://localhost:7213/DesactivarUsuario?id_usuario=${usuario.id_usuario}`
+        : `https://localhost:7213/ActivarUsuario?id_usuario=${usuario.id_usuario}`
+
+      await makeRequest("PUT", endpoint)
+
+      // Actualizar la lista correspondiente
+      if (activeTab === "students") {
+        const updatedAlumnos = await makeRequest("GET", "https://localhost:7213/GetAlumnos")
+        setAlumnos(updatedAlumnos)
+        addNotification("success", `Alumno ${isActive ? "desactivado" : "activado"} correctamente`)
+      } else if (activeTab === "teachers") {
+        const updatedDocentes = await makeRequest("GET", "https://localhost:7213/GetDocentes")
+        setDocentes(updatedDocentes)
+        addNotification("success", `Docente ${isActive ? "desactivado" : "activado"} correctamente`)
+      } else if (activeTab === "admins") {
+        const updatedAdmins = await makeRequest("GET", "https://localhost:7213/GetAdministradores")
+        setAdministrativos(updatedAdmins)
+        addNotification("success", `Administrador ${isActive ? "desactivado" : "activado"} correctamente`)
+      }
+    } catch (error) {
+      console.error("Error al cambiar estado del usuario:", error)
+      setError("Ocurrió un error al cambiar el estado del usuario.")
+      addNotification("error", "Error al cambiar estado del usuario")
+    } finally {
+      setIsTogglingStatus(false)
+    }
+  }
 
   // Actualizar la función handleEdit para incluir administradores
   const handleEdit = async (usuario: Alumno | Teacher | Admin) => {
@@ -1290,9 +1389,13 @@ const UserManagement = () => {
       // Recargar la lista de administradores para ver el nuevo administrador
       const adminsActualizados = await makeRequest("GET", "https://localhost:7213/GetAdministradores")
       setAdministrativos(adminsActualizados)
+
+      // Mostrar notificación de éxito
+      addNotification("success", "Administrador creado correctamente")
     } catch (err) {
       console.error("Error creating administrator:", err)
       setError("Ocurrió un error al crear el administrador. Intenta nuevamente.")
+      addNotification("error", "Error al crear administrador")
     } finally {
       setIsLoading(false)
     }
@@ -1314,9 +1417,13 @@ const UserManagement = () => {
       // Recargar la lista de administradores para ver los cambios
       const adminsActualizados = await makeRequest("GET", "https://localhost:7213/GetAdministradores")
       setAdministrativos(adminsActualizados)
+
+      // Mostrar notificación de éxito
+      addNotification("success", "Administrador actualizado correctamente")
     } catch (err) {
       console.error("Error updating administrator:", err)
       setError("Ocurrió un error al actualizar el administrador. Intenta nuevamente.")
+      addNotification("error", "Error al actualizar administrador")
     } finally {
       setIsLoading(false)
     }
@@ -1338,9 +1445,13 @@ const UserManagement = () => {
       // Recargar la lista de alumnos para ver los cambios
       const alumnosActualizados = await makeRequest("GET", "https://localhost:7213/GetAlumnos")
       setAlumnos(alumnosActualizados)
+
+      // Mostrar notificación de éxito
+      addNotification("success", "Alumno actualizado correctamente")
     } catch (err) {
       console.error("Error updating student:", err)
       setError("Ocurrió un error al actualizar el alumno. Intenta nuevamente.")
+      addNotification("error", "Error al actualizar alumno")
     } finally {
       setIsLoading(false)
     }
@@ -1416,9 +1527,13 @@ const UserManagement = () => {
       // Recargar la lista de docentes para ver los cambios
       const docentesActualizados = await makeRequest("GET", "https://localhost:7213/GetDocentes")
       setDocentes(docentesActualizados)
+
+      // Mostrar notificación de éxito
+      addNotification("success", "Docente actualizado correctamente")
     } catch (err) {
       console.error("Error updating teacher:", err)
       setError("Ocurrió un error al actualizar el docente. Intenta nuevamente.")
+      addNotification("error", "Error al actualizar docente")
     } finally {
       setIsLoading(false)
     }
@@ -1497,9 +1612,13 @@ const UserManagement = () => {
       // Recargar la lista de docentes para ver el nuevo docente
       const docentesActualizados = await makeRequest("GET", "https://localhost:7213/GetDocentes")
       setDocentes(docentesActualizados)
+
+      // Mostrar notificación de éxito
+      addNotification("success", "Docente creado correctamente")
     } catch (err) {
       console.error("Error creating teacher:", err)
       setError("Ocurrió un error al crear el docente. Intenta nuevamente.")
+      addNotification("error", "Error al crear docente")
     } finally {
       setIsLoading(false)
     }
@@ -1521,9 +1640,13 @@ const UserManagement = () => {
       // Recargar la lista de alumnos para ver el nuevo alumno
       const alumnosActualizados = await makeRequest("GET", "https://localhost:7213/GetAlumnos")
       setAlumnos(alumnosActualizados)
+
+      // Mostrar notificación de éxito
+      addNotification("success", "Alumno creado correctamente")
     } catch (err) {
       console.error("Error creating student:", err)
       setError("Ocurrió un error al crear el alumno. Intenta nuevamente.")
+      addNotification("error", "Error al crear alumno")
     } finally {
       setIsLoading(false)
     }
@@ -1604,7 +1727,8 @@ const UserManagement = () => {
   // Modificar la función handleDelete para mostrar el modal en lugar de usar window.confirm
   const handleDelete = (id_usuario: number) => {
     if (id_usuario === 7) {
-      return alert("No puedes eliminar al usuario administrador principal.")
+      addNotification("error", "No puedes eliminar al usuario administrador principal")
+      return
     }
     setUserToDelete(id_usuario)
     setShowDeleteConfirm(true)
@@ -1632,12 +1756,15 @@ const UserManagement = () => {
       if (activeTab === "students") {
         const updatedAlumnos = await makeRequest("GET", "https://localhost:7213/GetAlumnos")
         setAlumnos(updatedAlumnos)
+        addNotification("success", "Alumno eliminado correctamente")
       } else if (activeTab === "teachers") {
         const updatedDocentes = await makeRequest("GET", "https://localhost:7213/GetDocentes")
         setDocentes(updatedDocentes)
+        addNotification("success", "Docente eliminado correctamente")
       } else if (activeTab === "admins") {
         const updatedAdmins = await makeRequest("GET", "https://localhost:7213/GetAdministradores")
         setAdministrativos(updatedAdmins)
+        addNotification("success", "Administrador eliminado correctamente")
       }
 
       setShowDeleteConfirm(false)
@@ -1645,6 +1772,7 @@ const UserManagement = () => {
     } catch (error) {
       console.error("Error al eliminar usuario:", error)
       setError("Ocurrió un error al eliminar el usuario. Por favor, inténtalo de nuevo.")
+      addNotification("error", "Error al eliminar usuario")
     } finally {
       setIsDeleting(false)
     }
@@ -1708,6 +1836,13 @@ const UserManagement = () => {
   return (
     <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
       <h1 className="text-3xl font-bold mb-8">Gestión de Usuarios</h1>
+
+      {/* Notificaciones */}
+      <div className="fixed top-4 right-4 z-50 w-80">
+        {notifications.map((notification) => (
+          <NotificationItem key={notification.id} notification={notification} onClose={removeNotification} />
+        ))}
+      </div>
 
       {/* Tabs */}
       <div className="border-b mb-8 overflow-x-auto">
@@ -1777,6 +1912,7 @@ const UserManagement = () => {
                     Fecha Nac.
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Correo</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
                 </>
               ) : (
@@ -1788,6 +1924,7 @@ const UserManagement = () => {
                     Teléfono
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Correo</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
                 </>
               )}
@@ -1797,7 +1934,7 @@ const UserManagement = () => {
             {activeTab === "students" &&
               !fetchingAlumnos &&
               alumnos.map((alumno) => (
-                <tr key={alumno.id_usuario}>
+                <tr key={alumno.id_usuario} className={alumno.activo === 0 ? "bg-gray-100" : ""}>
                   <td className="px-4 py-2">{alumno.nombre}</td>
                   <td className="px-4 py-2">{alumno.apellido}</td>
                   <td className="px-4 py-2">{alumno.dni}</td>
@@ -1806,12 +1943,32 @@ const UserManagement = () => {
                   <td className="px-4 py-2 hidden sm:table-cell">{new Date(alumno.fecha_nac).toLocaleDateString()}</td>
                   <td className="px-4 py-2">{alumno.correo}</td>
                   <td className="px-4 py-2">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${alumno.activo === 1 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+                    >
+                      {alumno.activo === 1 ? "Activo" : "Inactivo"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2">
                     <div className="flex space-x-2">
-                      <button onClick={() => handleEdit(alumno)} className="p-1 hover:text-blue-600 hover:bg-blue-50 rounded">
+                      <button
+                        onClick={() => handleEdit(alumno)}
+                        className="p-1 hover:text-blue-600 hover:bg-blue-50 rounded"
+                      >
                         <Pencil className="h-4 w-4" />
                       </button>
-
-                      <button onClick={() => handleDelete(alumno.id_usuario)} className="p-1 hover:text-red-600 hover:bg-red-50 rounded">
+                      <button
+                        onClick={() => toggleUserStatus(alumno)}
+                        className={`p-1 rounded ${alumno.activo === 1 ? "hover:text-red-600 hover:bg-red-50" : "hover:text-green-600 hover:bg-green-50"}`}
+                        disabled={isTogglingStatus}
+                        title={alumno.activo === 1 ? "Desactivar usuario" : "Activar usuario"}
+                      >
+                        {alumno.activo === 1 ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(alumno.id_usuario)}
+                        className="p-1 hover:text-red-600 hover:bg-red-50 rounded"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
@@ -1821,16 +1978,38 @@ const UserManagement = () => {
             {activeTab === "teachers" &&
               !fetchingDocentes &&
               docentes.map((teacher) => (
-                <tr key={teacher.id_usuario}>
+                <tr key={teacher.id_usuario} className={teacher.activo === 0 ? "bg-gray-100" : ""}>
                   <td className="px-6 py-4">{teacher.nombre}</td>
                   <td className="px-6 py-4">{teacher.apellido}</td>
                   <td className="px-6 py-4">{teacher.dni}</td>
                   <td className="px-4 py-2 hidden sm:table-cell">{teacher.telefono || "-"}</td>
                   <td className="px-6 py-4">{teacher.correo}</td>
+                  <td className="px-4 py-2">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${teacher.activo === 1 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+                    >
+                      {teacher.activo === 1 ? "Activo" : "Inactivo"}
+                    </span>
+                  </td>
                   <td className="px-6 py-4">
                     <div className="flex space-x-2">
-                      <button onClick={() => handleEdit(teacher)} className="p-1 hover:text-blue-600 hover:bg-blue-50 rounded">
+                      <button
+                        onClick={() => handleEdit(teacher)}
+                        className="p-1 hover:text-blue-600 hover:bg-blue-50 rounded"
+                      >
                         <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => toggleUserStatus(teacher)}
+                        className={`p-1 rounded ${teacher.activo === 1 ? "hover:text-red-600 hover:bg-red-50" : "hover:text-green-600 hover:bg-green-50"}`}
+                        disabled={isTogglingStatus}
+                        title={teacher.activo === 1 ? "Desactivar usuario" : "Activar usuario"}
+                      >
+                        {teacher.activo === 1 ? (
+                          <ToggleRight className="h-4 w-4" />
+                        ) : (
+                          <ToggleLeft className="h-4 w-4" />
+                        )}
                       </button>
                       <button
                         onClick={() => handleDelete(teacher.id_usuario)}
@@ -1845,24 +2024,48 @@ const UserManagement = () => {
             {activeTab === "admins" &&
               !fetchingAdmins &&
               admins.map((admin) => (
-                <tr key={admin.id_usuario}>
+                <tr key={admin.id_usuario} className={admin.activo === 0 ? "bg-gray-100" : ""}>
                   <td className="px-6 py-4">{admin.nombre}</td>
                   <td className="px-6 py-4">{admin.apellido}</td>
                   <td className="px-6 py-4">{admin.dni}</td>
                   <td className="px-4 py-2 hidden sm:table-cell">{admin.telefono || "-"}</td>
                   <td className="px-6 py-4">{admin.correo}</td>
+                  <td className="px-4 py-2">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${admin.activo === 1 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+                    >
+                      {admin.activo === 1 ? "Activo" : "Inactivo"}
+                    </span>
+                  </td>
                   <td className="px-6 py-4">
                     <div className="flex space-x-2">
-                      <button onClick={() => handleEdit(admin)} className="p-1 hover:text-blue-600 hover:bg-blue-50 rounded">
+                      <button
+                        onClick={() => handleEdit(admin)}
+                        className="p-1 hover:text-blue-600 hover:bg-blue-50 rounded"
+                      >
                         <Pencil className="h-4 w-4" />
                       </button>
                       {admin.id_usuario !== 7 && (
-                        <button
-                          onClick={() => handleDelete(admin.id_usuario)}
-                          className="p-1 hover:text-red-600 hover:bg-red-50 rounded"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => toggleUserStatus(admin)}
+                            className={`p-1 rounded ${admin.activo === 1 ? "hover:text-red-600 hover:bg-red-50" : "hover:text-green-600 hover:bg-green-50"}`}
+                            disabled={isTogglingStatus}
+                            title={admin.activo === 1 ? "Desactivar usuario" : "Activar usuario"}
+                          >
+                            {admin.activo === 1 ? (
+                              <ToggleRight className="h-4 w-4" />
+                            ) : (
+                              <ToggleLeft className="h-4 w-4" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleDelete(admin.id_usuario)}
+                            className="p-1 hover:text-red-600 hover:bg-red-50 rounded"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>
@@ -1883,14 +2086,14 @@ const UserManagement = () => {
           {renderForm()}
         </div>
       </Modal>
+
       {/* Modal de confirmación para eliminar usuario */}
       <Modal isOpen={showDeleteConfirm} onClose={() => !isDeleting && setShowDeleteConfirm(false)}>
         <div className="p-6">
-          
-        <div className="flex items-center space-x-3 mb-4">
-        <AlertCircle className="w-6 h-6 text-red-600" />
-        <h2 className="text-xl font-bold">Confirmar Eliminación</h2>
-      </div>
+          <div className="flex items-center space-x-3 mb-4">
+            <AlertCircle className="w-6 h-6 text-red-600" />
+            <h2 className="text-xl font-bold">Confirmar Eliminación</h2>
+          </div>
           <p className="text-sm text-gray-600 mb-6">
             ¿Estás seguro de que deseas eliminar este usuario? Esta acción no se puede deshacer.
           </p>
@@ -1910,7 +2113,6 @@ const UserManagement = () => {
             >
               {isDeleting ? (
                 <>
-                  <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Eliminando...
                 </>
