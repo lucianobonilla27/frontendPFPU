@@ -50,11 +50,11 @@ export default function LoginPage() {
 
           // Redirigir según el tipo de usuario
           if (response.tipo.toLowerCase() === "administrativo") {
-            router.push("/users")
+            router.push("/")
           } else if (response.tipo.toLowerCase() === "docente") {
-            router.push("/grades")
+            router.push("/")
           } else if (response.tipo.toLowerCase() === "alumno") {
-            router.push("/academic-info")
+            router.push("/")
           } else {
             router.push("/")
           }
