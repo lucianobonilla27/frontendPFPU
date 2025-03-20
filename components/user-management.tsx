@@ -283,7 +283,7 @@ const AlumnoForm = ({
       <div>
         <label className="block text-sm font-medium text-gray-700">Teléfono</label>
         <input
-          type="tel"
+          type="number"
           name="telefono"
           value={formValues.telefono || ""}
           onChange={handleInputChange}
@@ -300,6 +300,7 @@ const AlumnoForm = ({
           onChange={handleInputChange}
           className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
           required
+          max={new Date().toISOString().split("T")[0]} // Limita la fecha máxima a hoy
         />
       </div>
       <div>
