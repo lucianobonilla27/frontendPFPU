@@ -141,7 +141,7 @@ export default function PaymentsInfo() {
 
         // Calcular deuda total pendiente
         const deudasPendientes = deudasProcesadas.filter((deuda) => deuda.estado !== "Pagado")
-        const totalDeuda = deudasPendientes.reduce((sum, deuda) => sum + (deuda.montoPendiente || deuda.monto), 0)
+        const totalDeuda = deudasPendientes.reduce((sum, deuda) => sum + (deuda.monto), 0)
         setDeudaTotal(totalDeuda)
       } catch (error) {
         console.error("Error al cargar datos de pagos:", error)
@@ -436,14 +436,14 @@ export default function PaymentsInfo() {
                         {deuda.montoPagado && deuda.montoPagado > 0 && (
                           <p className="text-sm text-green-600">
                             Pagado: ${deuda.montoPagado.toLocaleString()} | Pendiente: $
-                            {deuda.montoPendiente?.toLocaleString()}
+                            {deuda.monto.toLocaleString()}
                           </p>
                         )
                        
                         }
                       </div>
                       <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-                        <span className="text-lg font-medium text-gray-900">${deuda.montoPendiente?.toLocaleString()}</span>
+                        <span className="text-lg font-medium text-gray-900">${deuda.monto.toLocaleString()}</span>
                         {getStatusBadge(deuda.estado)}
                       </div>
                     </div>
@@ -455,7 +455,7 @@ export default function PaymentsInfo() {
                 {deudasPagadas.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">No hay historial de pagos para mostrar.</div>
                 ) : (
-                  deudasPagadas.map((deuda) => (
+                  [...deudasPagadas, ...deudasPendientes].map((deuda) => (  //  Combinar ambas listas ya que antes solo se mostrababan los pagos de las deudas pagadas
                     <div
                       key={deuda.id_deuda}
                       className="flex flex-col md:flex-row md:items-center justify-between p-4 border rounded-lg"
