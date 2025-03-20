@@ -370,13 +370,16 @@ const AlumnoForm = ({
           {fetchingCursos ? (
             <option disabled>Cargando cursos...</option>
           ) : (
-            cursos.map((curso) => (
-              <option key={curso.id_curso} value={curso.id_curso}>
-                {`${getAnioEscolar(curso.id_anio)} ${curso.division}`}
-              </option>
-            ))
+            cursos
+              .filter((curso) => curso.cupo_restante > 0)
+              .map((curso) => (
+                <option key={curso.id_curso} value={curso.id_curso}>
+                  {`${getAnioEscolar(curso.id_anio)} ${curso.division} (Cupos: ${curso.cupo_restante})`}
+                </option>
+              ))
           )}
         </select>
+        <p className="mt-1 text-sm text-gray-500">Solo se muestran cursos con cupos disponibles.</p>
       </div>
       <div className="flex justify-end space-x-4">
         <button

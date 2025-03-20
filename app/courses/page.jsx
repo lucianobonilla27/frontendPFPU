@@ -101,7 +101,7 @@ const CourseForm = ({ isEditing, initialValues, grades, onSubmit, onCancel, isSu
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (formValues.id_anio && formValues.division && formValues.cupo_restante > 0) {
+    if (formValues.id_anio && formValues.division && formValues.cupo_restante >= 0) {
       onSubmit(formValues)
     }
   }
@@ -150,7 +150,7 @@ const CourseForm = ({ isEditing, initialValues, grades, onSubmit, onCancel, isSu
             name="cupo_restante"
             value={formValues.cupo_restante}
             onChange={handleChange}
-            min="1"
+            min="0"
             placeholder="Ej: 30"
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
             disabled={isSubmitting}
