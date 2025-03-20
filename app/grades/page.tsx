@@ -579,6 +579,7 @@ export default function GradesManagement() {
                     onChange={(e) => setGradeData({ ...gradeData, date: e.target.value })}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
                     required
+                    max={new Date().toISOString().split("T")[0]} // Limita la fecha máxima a hoy
                   />
                 </div>
                 <div>

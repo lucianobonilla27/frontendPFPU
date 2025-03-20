@@ -13,7 +13,7 @@ interface Nota {
 
 interface Materia {
   id_materia: number
-  nombre: string
+  materia: string
   docente?: string
   notas?: {
     1: Nota[]
@@ -332,9 +332,12 @@ export default function AcademicInfo() {
                 ) : (
                   academicData.materias.map((subject) => (
                     <div key={subject.id_materia} className="bg-white border rounded-lg p-4">
+                      {/* Información de la materia, añado el nombre de la materia */}
+
                       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
                         <div>
-                          <h3 className="text-lg font-medium text-gray-900">{subject.nombre}</h3>
+                          <h3 className="text-lg font-medium text-gray-900">{subject.materia}</h3>
+                         
                           <p className="text-sm text-gray-600">{subject.docente}</p>
                         </div>
                         <div className="mt-2 md:mt-0">
