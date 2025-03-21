@@ -42,10 +42,17 @@ export default function LoginPage() {
             token: response.token,
             role: response.tipo.toLowerCase(),
             name: response.nombre + " " + response.apellido,
-            id_usuario: response.id_usuario
-           
+            id_usuario: response.id_usuario,
+            activo: response.activo
 
           })
+
+          if (response.activo === 0) {
+            setError("Usuario inactivo, contacte al administrador")
+            setIsLoading(false)
+            
+            return
+          }
        
 
           // Redirigir según el tipo de usuario

@@ -10,6 +10,7 @@ interface User {
   role: string
   token: string
   id_usuario: number 
+  activo: number
 }
 
 interface AuthContextType {
