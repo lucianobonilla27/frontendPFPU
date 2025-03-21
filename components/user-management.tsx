@@ -32,7 +32,7 @@ interface Teacher {
   id_usuario: number
   nombre: string
   apellido: string
-  dni: string
+  dni: number
   correo: string
   contrasenia: string
   telefono: string
@@ -44,7 +44,7 @@ interface Admin {
   id_usuario: number
   nombre: string
   apellido: string
-  dni: string
+  dni: number
   correo: string
   contrasenia: string
   telefono: string
@@ -261,13 +261,16 @@ const AlumnoForm = ({
       <div>
         <label className="block text-sm font-medium text-gray-700">DNI</label>
         <input
-          type="number"
-          name="dni"
-          value={formValues.dni || ""}
-          onChange={handleInputChange}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-          required
-        />
+        type="text"
+        name="dni"
+        value={formValues.dni}
+        onChange={handleInputChange}
+        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+        maxLength={9} // No permite más de 9 caracteres
+        pattern="\d{9}" // Solo acepta exactamente 9 dígitos
+        title="Debe ingresar exactamente 9 dígitos"
+        required
+      />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700">Dirección</label>
@@ -466,9 +469,10 @@ const TeacherForm = ({
     setFormValues((prev) => ({
       ...prev,
       [name]: name === "dni" ? Number(value) : value,
+      
     }))
   }
-
+ 
   const generateRandomPassword = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()"
     let password = ""
@@ -576,13 +580,16 @@ const TeacherForm = ({
       <div>
         <label className="block text-sm font-medium text-gray-700">DNI</label>
         <input
-          type="number"
-          name="dni"
-          value={formValues.dni || ""}
-          onChange={handleInputChange}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-          required
-        />
+        type="text"
+        name="dni"
+        value={formValues.dni}
+        onChange={handleInputChange}
+        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+        maxLength={9} // No permite más de 9 caracteres
+        pattern="\d{9}" // Solo acepta exactamente 9 dígitos
+        title="Debe ingresar exactamente 9 dígitos"
+        required
+      />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700">Teléfono</label>
@@ -873,13 +880,16 @@ const AdminForm = ({
       <div>
         <label className="block text-sm font-medium text-gray-700">DNI</label>
         <input
-          type="text"
-          name="dni"
-          value={formValues.dni}
-          onChange={handleInputChange}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-          required
-        />
+        type="text"
+        name="dni"
+        value={formValues.dni}
+        onChange={handleInputChange}
+        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+        maxLength={9} // No permite más de 9 caracteres
+        pattern="\d{9}" // Solo acepta exactamente 9 dígitos
+        title="Debe ingresar exactamente 9 dígitos"
+        required
+      />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700">Teléfono</label>
@@ -1046,7 +1056,7 @@ const UserManagement = () => {
   // Agregar un nuevo estado para administradores
   const [nuevoAdmin, setNuevoAdmin] = useState<Admin>({
     id_usuario: 0,
-    dni: "",
+    dni: 0,
     contrasenia: "",
     correo: "",
     nombre: "",
@@ -1713,7 +1723,7 @@ const UserManagement = () => {
     })
     setNuevoAdmin({
       id_usuario: 0,
-      dni: "",
+      dni: 0,
       contrasenia: "",
       correo: "",
       nombre: "",

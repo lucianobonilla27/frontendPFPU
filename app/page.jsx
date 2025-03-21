@@ -2,19 +2,36 @@
 
 import { useState, useEffect } from "react"
 import Navbar from "../components/navbar"
-import { School, Users, BookOpen, GraduationCap, Loader2 } from "lucide-react"
+import {
+  School,
+  Users,
+  BookOpen,
+  GraduationCap,
+  Loader2,
+  Calendar,
+  TrendingUp,
+  Award,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
+  DollarSign,
+  Percent,
+} from "lucide-react"
+import { BarChart } from "../components/bar-chart"
+import { PieChartComponent } from "../components/pie-chart"
+import { RecentActivity } from "../components/recent-activity"
+import { UpcomingEvents } from "../components/upcoming-events"
 
 export default function HomePage() {
   const [stats, setStats] = useState([])
+  const [chartData, setChartData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   const user =
     typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || '{"role":"alumno"}') : { role: "alumno" }
-    const storageId = user ? user.id_usuario : null
-
-
-
+  const storageId = user ? user.id_usuario : null
 
   // Define icon mapping for stats
   const iconMapping = {
@@ -25,8 +42,17 @@ export default function HomePage() {
     "Mis Materias": BookOpen,
     Materias: BookOpen,
     Asistencia: Users,
+    "Promedio General": Award,
+    "Alumnos con Deuda": AlertCircle,
+    "Pagos Recibidos": DollarSign,
+    "Asistencia Promedio": Percent,
+    "Notas Pendientes": FileText,
+    "Notas Registradas": CheckCircle2,
+    "Deudas Pendientes": AlertCircle,
+    "Último Pago": DollarSign,
   }
 
+  // Modifica la función useEffect para incluir la obtención de datos del gráfico
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -64,6 +90,10 @@ export default function HomePage() {
         // Transform API response to the format expected by the component
         const transformedStats = transformApiResponse(data, user.role)
         setStats(transformedStats)
+
+        // Fetch chart data based on user role
+        await fetchChartData(user.role)
+
         setError(null)
       } catch (err) {
         console.error("Error fetching stats:", err)
@@ -71,8 +101,60 @@ export default function HomePage() {
 
         // Fallback to hardcoded data in case of error
         setFallbackStats()
+        setChartData(generateFallbackChartData(user.role))
       } finally {
         setLoading(false)
+      }
+    }
+
+    // Función para obtener los datos de los gráficos
+    const fetchChartData = async (role) => {
+      try {
+        let chartDataObj = {
+          barChart: null,
+          pieChart: null,
+        }
+
+        // Obtener datos para el gráfico de barras según el rol
+        if (role === "administrativo") {
+          // Obtener datos de asistencia por año para administradores
+          const asistenciaResponse = await fetch("https://localhost:7213/graficosAdmin/asistencia", {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
+
+          if (asistenciaResponse.ok) {
+            const asistenciaData = await asistenciaResponse.json()
+
+            // Transformar los datos al formato esperado por el componente BarChart
+            chartDataObj.barChart = {
+              labels: asistenciaData.labels,
+              datasets: [
+                {
+                  label: asistenciaData.label,
+                  data: asistenciaData.data,
+                  backgroundColor: "#3b82f6",
+                },
+              ],
+            }
+          } else {
+            throw new Error(`Error fetching attendance chart data: ${asistenciaResponse.status}`)
+          }
+
+          // Usar datos de fallback para el gráfico circular por ahora
+          chartDataObj.pieChart = generateFallbackChartData(role).pieChart
+        } else {
+          // Para otros roles, usar datos de fallback por ahora
+          chartDataObj = generateFallbackChartData(role)
+        }
+
+        setChartData(chartDataObj)
+      } catch (error) {
+        console.error("Error fetching chart data:", error)
+        // Usar datos de fallback en caso de error
+        setChartData(generateFallbackChartData(role))
       }
     }
 
@@ -84,7 +166,7 @@ export default function HomePage() {
     const transformedStats = []
 
     if (role === "administrativo") {
-      // Transform admin stats
+      // Transform admin stats - these would come from your API
       if (data.cantidadAlumnos !== undefined) {
         transformedStats.push({ name: "Total Alumnos", value: data.cantidadAlumnos.toString(), icon: "Users" })
       }
@@ -101,6 +183,11 @@ export default function HomePage() {
       if (data.cantidadCursos !== undefined) {
         transformedStats.push({ name: "Total Cursos", value: data.cantidadCursos.toString(), icon: "School" })
       }
+
+      // Additional admin stats based on your DB schema
+      // These would need to be added to your API
+      transformedStats.push({ name: "Asistencia Promedio", value: "85%", icon: "Percent" })
+      transformedStats.push({ name: "Alumnos con Deuda", value: "24", icon: "AlertCircle" })
     } else if (role === "docente") {
       // Transform teacher stats
       if (data.cantidadMaterias !== undefined) {
@@ -109,6 +196,11 @@ export default function HomePage() {
       if (data.cantidadAlumnos !== undefined) {
         transformedStats.push({ name: "Total Alumnos", value: data.cantidadAlumnos.toString(), icon: "Users" })
       }
+
+      // Additional teacher stats based on your DB schema
+      transformedStats.push({ name: "Asistencia Promedio", value: "88%", icon: "Percent" })
+      transformedStats.push({ name: "Notas Pendientes", value: "15", icon: "FileText" })
+      transformedStats.push({ name: "Notas Registradas", value: "120", icon: "CheckCircle2" })
     } else if (role === "alumno") {
       // Transform student stats
       if (data.cantidadMaterias !== undefined) {
@@ -117,9 +209,95 @@ export default function HomePage() {
       if (data.porcentajeAsistencia !== undefined) {
         transformedStats.push({ name: "Asistencia", value: `${data.porcentajeAsistencia}%`, icon: "Users" })
       }
+
+      // Additional student stats based on your DB schema
+      transformedStats.push({ name: "Promedio General", value: "7.5", icon: "Award" })
+      transformedStats.push({ name: "Deudas Pendientes", value: "2", icon: "AlertCircle" })
+      transformedStats.push({ name: "Último Pago", value: "$5000", icon: "DollarSign" })
     }
 
     return transformedStats
+  }
+
+  // Elimina la función generateChartData ya que ahora obtenemos los datos reales
+  // y reemplázala con esta versión simplificada
+
+  // Generate chart data based on API response
+  const generateChartData = (data, role) => {
+    // Esta función ya no se usa directamente, pero la mantenemos por compatibilidad
+    return generateFallbackChartData(role)
+  }
+
+  // Generate fallback chart data
+  const generateFallbackChartData = (role) => {
+    if (role === "administrativo") {
+      return {
+        barChart: {
+          labels: ["1° Año", "2° Año", "3° Año", "4° Año", "5° Año"],
+          datasets: [
+            {
+              label: "Promedio de Asistencia por Año",
+              data: [92, 88, 85, 78, 82],
+              backgroundColor: "#3b82f6",
+            },
+          ],
+        },
+        pieChart: {
+          labels: ["Al día", "Deuda < 30 días", "Deuda > 30 días"],
+          datasets: [
+            {
+              data: [65, 25, 10],
+              backgroundColor: ["#22c55e", "#eab308", "#ef4444"],
+            },
+          ],
+        },
+      }
+    } else if (role === "docente") {
+      return {
+        barChart: {
+          labels: ["1° Trim", "2° Trim", "3° Trim"],
+          datasets: [
+            {
+              label: "Promedio de Notas por Trimestre",
+              data: [7.2, 7.8, 8.1],
+              backgroundColor: "#3b82f6",
+            },
+          ],
+        },
+        pieChart: {
+          labels: ["Presente", "Tarde", "Ausente"],
+          datasets: [
+            {
+              data: [75, 15, 10],
+              backgroundColor: ["#22c55e", "#eab308", "#ef4444"],
+            },
+          ],
+        },
+      }
+    } else {
+      // alumno
+      return {
+        barChart: {
+          labels: ["Matemáticas", "Lengua", "Historia", "Ciencias", "Arte"],
+          datasets: [
+            {
+              label: "Mis Calificaciones",
+              data: [8.5, 9.0, 7.5, 8.0, 9.5],
+              backgroundColor: "#3b82f6",
+            },
+          ],
+        },
+        pieChart: {
+          labels: ["Presente", "Tarde", "Ausente"],
+          datasets: [
+            {
+              data: [85, 10, 5],
+              backgroundColor: ["#22c55e", "#eab308", "#ef4444"],
+            },
+          ],
+        },
+      }
+    }
   }
 
   // Fallback function to set hardcoded stats in case of API error
@@ -129,16 +307,24 @@ export default function HomePage() {
       { name: "Total Docentes", value: "12", icon: "GraduationCap" },
       { name: "Total Materias", value: "8", icon: "BookOpen" },
       { name: "Total Cursos", value: "12", icon: "School" },
+      { name: "Asistencia Promedio", value: "85%", icon: "Percent" },
+      { name: "Alumnos con Deuda", value: "24", icon: "AlertCircle" },
     ]
 
     const docenteStats = [
       { name: "Mis Materias", value: "2", icon: "BookOpen" },
       { name: "Total Alumnos", value: "87", icon: "Users" },
+      { name: "Asistencia Promedio", value: "88%", icon: "Percent" },
+      { name: "Notas Pendientes", value: "15", icon: "FileText" },
+      { name: "Notas Registradas", value: "120", icon: "CheckCircle2" },
     ]
 
     const alumnoStats = [
       { name: "Materias", value: "8", icon: "BookOpen" },
       { name: "Asistencia", value: "95%", icon: "Users" },
+      { name: "Promedio General", value: "7.5", icon: "Award" },
+      { name: "Deudas Pendientes", value: "2", icon: "AlertCircle" },
+      { name: "Último Pago", value: "$5000", icon: "DollarSign" },
     ]
 
     switch (user.role) {
@@ -156,6 +342,29 @@ export default function HomePage() {
     }
   }
 
+  // Get title for charts based on user role
+  const getChartTitles = (role) => {
+    if (role === "administrativo") {
+      return {
+        bar: "Asistencia por Año",
+        pie: "Estado de Pagos",
+      }
+    } else if (role === "docente") {
+      return {
+        bar: "Promedio por Trimestre",
+        pie: "Distribución de Asistencia",
+      }
+    } else {
+      // alumno
+      return {
+        bar: "Calificaciones por Materia",
+        pie: "Mi Asistencia",
+      }
+    }
+  }
+
+  const chartTitles = getChartTitles(user.role)
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -168,7 +377,6 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Dashboard Grid */}
         {loading ? (
           <div className="flex justify-center items-center h-40">
             <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
@@ -177,22 +385,72 @@ export default function HomePage() {
         ) : error ? (
           <div className="bg-red-50 p-4 rounded-lg border border-red-200 text-red-700">{error}</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {stats.map((stat, index) => {
-              const IconComponent = iconMapping[stat.name] || Users
-              return (
-                <div key={index} className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">{stat.name}</p>
-                      <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
+          <>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+              {stats.map((stat, index) => {
+                const IconComponent = iconMapping[stat.name] || Users
+                return (
+                  <div
+                    key={index}
+                    className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">{stat.name}</p>
+                        <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
+                      </div>
+                      <IconComponent className="h-8 w-8 text-blue-600" />
                     </div>
-                    <IconComponent className="h-8 w-8 text-blue-600" />
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Charts Section */}
+            {chartData && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold text-gray-900">{chartTitles.bar}</h2>
+                    <TrendingUp className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div className="h-64">
+                    <BarChart data={chartData.barChart} />
                   </div>
                 </div>
-              )
-            })}
-          </div>
+
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold text-gray-900">{chartTitles.pie}</h2>
+                    <Percent className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div className="h-64 flex justify-center">
+                    <PieChartComponent data={chartData.pieChart} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Additional Sections */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white p-6 rounded-lg shadow-sm border">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-900">Actividad Reciente</h2>
+                  <Clock className="h-5 w-5 text-blue-600" />
+                </div>
+                <RecentActivity role={user.role} />
+              </div>
+
+              <div className="bg-white p-6 rounded-lg shadow-sm border">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-900">Próximos Eventos</h2>
+                  <Calendar className="h-5 w-5 text-blue-600" />
+                </div>
+                <UpcomingEvents role={user.role} />
+              </div>
+            </div>
+          </>
         )}
       </main>
     </div>

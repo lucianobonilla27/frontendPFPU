@@ -392,7 +392,8 @@ export default function AttendanceManagement() {
                     <option value="">Seleccionar materia...</option>
                     {materias.map((materia) => (
                       <option key={materia.id_materia} value={materia.id_materia}>
-                        {materia.materia}
+                        {/* necesito añadir el año de la materia tambien por si hay dos materias con el mismo nombre */}
+                        {materia.materia + " (" + materia.id_anio + "° año" + ")"}
                       </option>
                     ))}
                   </select>
