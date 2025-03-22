@@ -143,8 +143,30 @@ export default function HomePage() {
             throw new Error(`Error fetching attendance chart data: ${asistenciaResponse.status}`)
           }
 
-          // Usar datos de fallback para el gráfico circular por ahora
-          chartDataObj.pieChart = generateFallbackChartData(role).pieChart
+          // Obtener datos para el gráfico circular de deudas
+          const deudaResponse = await fetch("https://localhost:7213/graficosAdmin/deuda", {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
+
+          if (deudaResponse.ok) {
+            const deudaData = await deudaResponse.json()
+
+            // Transformar los datos al formato esperado por el componente PieChart
+            chartDataObj.pieChart = {
+              labels: deudaData.labels,
+              datasets: [
+                {
+                  data: deudaData.data,
+                  backgroundColor: deudaData.backgroundColor,
+                },
+              ],
+            }
+          } else {
+            throw new Error(`Error fetching debt chart data: ${deudaResponse.status}`)
+          }
         } else {
           // Para otros roles, usar datos de fallback por ahora
           chartDataObj = generateFallbackChartData(role)
@@ -186,8 +208,12 @@ export default function HomePage() {
 
       // Additional admin stats based on your DB schema
       // These would need to be added to your API
-      transformedStats.push({ name: "Asistencia Promedio", value: "85%", icon: "Percent" })
-      transformedStats.push({ name: "Alumnos con Deuda", value: "24", icon: "AlertCircle" })
+      transformedStats.push({
+        name: "Asistencia Promedio",
+        value: data.porcentajeAsistenciasGlobal.toString() + "%",
+        icon: "Percent",
+      })
+      transformedStats.push({ name: "Alumnos con Deuda", value: data.alumnosConDeuda.toString(), icon: "AlertCircle" })
     } else if (role === "docente") {
       // Transform teacher stats
       if (data.cantidadMaterias !== undefined) {
@@ -218,9 +244,6 @@ export default function HomePage() {
 
     return transformedStats
   }
-
-  // Elimina la función generateChartData ya que ahora obtenemos los datos reales
-  // y reemplázala con esta versión simplificada
 
   // Generate chart data based on API response
   const generateChartData = (data, role) => {
@@ -423,7 +446,7 @@ export default function HomePage() {
                 <div className="bg-white p-6 rounded-lg shadow-sm border">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-semibold text-gray-900">{chartTitles.pie}</h2>
-                    <Percent className="h-5 w-5 text-blue-600" />
+                    <DollarSign className="h-5 w-5 text-blue-600" />
                   </div>
                   <div className="h-64 flex justify-center">
                     <PieChartComponent data={chartData.pieChart} />

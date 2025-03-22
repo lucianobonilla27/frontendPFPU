@@ -1,9 +1,112 @@
 "use client"
 
-import { CheckCircle2, FileText, BookOpen, Clock, DollarSign, Users } from "lucide-react"
+import { useState, useEffect } from "react"
+import { CheckCircle2, FileText, MessageSquare, BookOpen, Clock, DollarSign, Users, AlertCircle } from "lucide-react"
 
 export function RecentActivity({ role }) {
-  // This would ideally come from an API based on your database
+  const [activities, setActivities] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    const fetchActivities = async () => {
+      try {
+        if (role === "administrativo") {
+          // Consumir el endpoint para administradores
+          const response = await fetch("https://localhost:7213/actividadRecienteAdmin", {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
+
+          if (!response.ok) {
+            throw new Error(`Error fetching activities: ${response.status}`)
+          }
+
+          const data = await response.json()
+
+          // Transformar los datos al formato esperado por el componente
+          const formattedActivities = data.map((activity, index) => ({
+            id: index + 1,
+            type: activity.tipo,
+            description: activity.descripcion,
+            time: formatTimeAgo(new Date(activity.fecha)),
+            icon: getIconForType(activity.tipo),
+          }))
+
+          setActivities(formattedActivities)
+        } else {
+          // Para otros roles, usar datos de fallback por ahora
+          setActivities(getActivities())
+        }
+        setError(null)
+      } catch (err) {
+        console.error("Error fetching activities:", err)
+        setError("No se pudieron cargar las actividades recientes.")
+        // Usar datos de fallback en caso de error
+        setActivities(getActivities())
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchActivities()
+  }, [role])
+
+  // Función para obtener el icono según el tipo de actividad
+  const getIconForType = (type) => {
+    switch (type) {
+      case "pago":
+        return DollarSign
+      case "asistencia":
+        return CheckCircle2
+      case "nota":
+        return FileText
+      case "enrollment":
+        return Users
+      case "message":
+        return MessageSquare
+      case "material":
+        return BookOpen
+      case "assignment":
+        return FileText
+      case "attendance":
+        return CheckCircle2
+      default:
+        return Clock
+    }
+  }
+
+  // Función para formatear la fecha como "hace X tiempo"
+  const formatTimeAgo = (date) => {
+    const now = new Date()
+    const diffInSeconds = Math.floor((now - date) / 1000)
+
+    if (diffInSeconds < 60) {
+      return "Hace unos segundos"
+    }
+
+    const diffInMinutes = Math.floor(diffInSeconds / 60)
+    if (diffInMinutes < 60) {
+      return `Hace ${diffInMinutes} ${diffInMinutes === 1 ? "minuto" : "minutos"}`
+    }
+
+    const diffInHours = Math.floor(diffInMinutes / 60)
+    if (diffInHours < 24) {
+      return `Hace ${diffInHours} ${diffInHours === 1 ? "hora" : "horas"}`
+    }
+
+    const diffInDays = Math.floor(diffInHours / 24)
+    if (diffInDays < 30) {
+      return `Hace ${diffInDays} ${diffInDays === 1 ? "día" : "días"}`
+    }
+
+    // Para fechas más antiguas, mostrar la fecha formateada
+    return date.toLocaleDateString()
+  }
+
+  // This would ideally come from an API
   const getActivities = () => {
     if (role === "administrativo") {
       return [
@@ -17,7 +120,7 @@ export function RecentActivity({ role }) {
         {
           id: 2,
           type: "grade",
-          description: "Calificaciones finales registradas para 3° año",
+          description: "Calificaciones finales publicadas para 3° año",
           time: "Hace 5 horas",
           icon: FileText,
         },
@@ -102,24 +205,43 @@ export function RecentActivity({ role }) {
     }
   }
 
-  const activities = getActivities()
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-40">
+        <Clock className="h-5 w-5 text-blue-600 animate-spin" />
+        <span className="ml-2 text-gray-600">Cargando actividades...</span>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 p-4 rounded-lg border border-red-200 text-red-700 flex items-center">
+        <AlertCircle className="h-5 w-5 mr-2" />
+        {error}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
-      {activities.map((activity) => (
-        <div key={activity.id} className="flex items-start space-x-3 pb-4 border-b border-gray-100 last:border-0">
-          <div className="bg-blue-100 p-2 rounded-full">
-            <activity.icon className="h-5 w-5 text-blue-600" />
+      {activities.map((activity) => {
+        const IconComponent = activity.icon
+        return (
+          <div key={activity.id} className="flex items-start space-x-3 pb-4 border-b border-gray-100 last:border-0">
+            <div className="bg-blue-100 p-2 rounded-full">
+              <IconComponent className="h-5 w-5 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm text-gray-800">{activity.description}</p>
+              <p className="text-xs text-gray-500 mt-1 flex items-center">
+                <Clock className="h-3 w-3 mr-1" />
+                {activity.time}
+              </p>
+            </div>
           </div>
-          <div className="flex-1">
-            <p className="text-sm text-gray-800">{activity.description}</p>
-            <p className="text-xs text-gray-500 mt-1 flex items-center">
-              <Clock className="h-3 w-3 mr-1" />
-              {activity.time}
-            </p>
-          </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
