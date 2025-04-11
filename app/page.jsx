@@ -17,6 +17,7 @@ import {
   FileText,
   DollarSign,
   Percent,
+  XCircle,
 } from "lucide-react"
 import { BarChart } from "../components/bar-chart"
 import { PieChartComponent } from "../components/pie-chart"
@@ -49,6 +50,8 @@ export default function HomePage() {
     "Notas Pendientes": FileText,
     "Notas Registradas": CheckCircle2,
     "Deudas Pendientes": AlertCircle,
+    "Materias Aprobadas": CheckCircle2,
+    "Materias Desaprobadas": XCircle,
     "Último Pago": DollarSign,
   }
 
@@ -107,7 +110,7 @@ export default function HomePage() {
       }
     }
 
-    // Función para obtener los datos de los gráficos
+    // Modificar la función fetchChartData para incluir la obtención de datos para el rol docente
     const fetchChartData = async (role) => {
       try {
         let chartDataObj = {
@@ -167,8 +170,129 @@ export default function HomePage() {
           } else {
             throw new Error(`Error fetching debt chart data: ${deudaResponse.status}`)
           }
+        } else if (role === "docente") {
+          // Obtener datos para el gráfico de barras de promedio por trimestre para docentes
+          const promedioResponse = await fetch(`https://localhost:7213/graficoPromedioDocente/${storageId}`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
+
+          if (promedioResponse.ok) {
+            const promedioData = await promedioResponse.json()
+
+            // Transformar los datos al formato esperado por el componente BarChart
+            chartDataObj.barChart = {
+              labels: promedioData.labels.map((trimestre) =>
+                trimestre === "0" ? "Recuperatorio" : `Trimestre ${trimestre}`,
+              ),
+              datasets: [
+                {
+                  label: promedioData.label,
+                  data: promedioData.data,
+                  backgroundColor: "#3b82f6",
+                },
+              ],
+            }
+          } else {
+            throw new Error(`Error fetching teacher average chart data: ${promedioResponse.status}`)
+          }
+
+          // Obtener datos para el gráfico circular de asistencia de alumnos por docente
+          const asistenciaResponse = await fetch(
+            `https://localhost:7213/graficoAsistenciasAlumnoByDocente/${storageId}`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          )
+
+          if (asistenciaResponse.ok) {
+            const asistenciaData = await asistenciaResponse.json()
+
+            // Transformar las etiquetas para que sean más descriptivas
+            const labelMap = {
+              A: "Ausente",
+              P: "Presente",
+              T: "Tarde",
+            }
+
+            // Transformar los datos al formato esperado por el componente PieChart
+            chartDataObj.pieChart = {
+              labels: asistenciaData.labels.map((label) => labelMap[label] || label),
+              datasets: [
+                {
+                  data: asistenciaData.data,
+                  backgroundColor: asistenciaData.backgroundColor,
+                },
+              ],
+            }
+          } else {
+            throw new Error(`Error fetching teacher attendance chart data: ${asistenciaResponse.status}`)
+          }
+        } else if (role === "alumno") {
+          // Obtener datos para el gráfico de barras de notas por materia para alumnos
+          const notasResponse = await fetch(`https://localhost:7213/graficoNotasAlumno/${storageId}`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
+
+          if (notasResponse.ok) {
+            const notasData = await notasResponse.json()
+
+            // Transformar los datos al formato esperado por el componente BarChart
+            chartDataObj.barChart = {
+              labels: notasData.labels,
+              datasets: [
+                {
+                  label: notasData.label,
+                  data: notasData.data,
+                  backgroundColor: "#3b82f6",
+                },
+              ],
+            }
+          } else {
+            throw new Error(`Error fetching student grades chart data: ${notasResponse.status}`)
+          }
+
+          // Obtener datos para el gráfico circular de asistencia total del alumno
+          const asistenciaResponse = await fetch(`https://localhost:7213/graficoAsistenciaTotalAlumno/${storageId}`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
+
+          if (asistenciaResponse.ok) {
+            const asistenciaData = await asistenciaResponse.json()
+
+            // Transformar las etiquetas para que sean más descriptivas
+            const labelMap = {
+              A: "Ausente",
+              P: "Presente",
+              T: "Tarde",
+            }
+
+            // Transformar los datos al formato esperado por el componente PieChart
+            chartDataObj.pieChart = {
+              labels: asistenciaData.labels.map((label) => labelMap[label] || label),
+              datasets: [
+                {
+                  data: asistenciaData.data,
+                  backgroundColor: asistenciaData.backgroundColor,
+                },
+              ],
+            }
+          } else {
+            throw new Error(`Error fetching student attendance chart data: ${asistenciaResponse.status}`)
+          }
         } else {
-          // Para otros roles, usar datos de fallback por ahora
+          // Para otros roles, usar datos de fallback
           chartDataObj = generateFallbackChartData(role)
         }
 
@@ -225,8 +349,8 @@ export default function HomePage() {
 
       // Additional teacher stats based on your DB schema
       transformedStats.push({ name: "Asistencia Promedio", value: "88%", icon: "Percent" })
-      transformedStats.push({ name: "Notas Pendientes", value: "15", icon: "FileText" })
-      transformedStats.push({ name: "Notas Registradas", value: "120", icon: "CheckCircle2" })
+      // transformedStats.push({ name: "Notas Pendientes", value: "15", icon: "FileText" })
+      // transformedStats.push({ name: "Notas Registradas", value: "120", icon: "CheckCircle2" })
     } else if (role === "alumno") {
       // Transform student stats
       if (data.cantidadMaterias !== undefined) {
@@ -236,10 +360,29 @@ export default function HomePage() {
         transformedStats.push({ name: "Asistencia", value: `${data.porcentajeAsistencia}%`, icon: "Users" })
       }
 
-      // Additional student stats based on your DB schema
-      transformedStats.push({ name: "Promedio General", value: "7.5", icon: "Award" })
-      transformedStats.push({ name: "Deudas Pendientes", value: "2", icon: "AlertCircle" })
-      transformedStats.push({ name: "Último Pago", value: "$5000", icon: "DollarSign" })
+      if (data.promedioNotas !== undefined) {
+        transformedStats.push({ name: "Promedio General", value: `${data.promedioNotas}`, icon: "Award" })
+      }
+
+      if (data.cantidadDeudas !== undefined) {
+        transformedStats.push({ name: "Deudas Pendientes", value: data.cantidadDeudas.toString(), icon: "AlertCircle" })
+      }
+
+      if (data.cantidadMateriasAprobadas !== undefined) {
+        transformedStats.push({
+          name: "Materias Aprobadas",
+          value: data.cantidadMateriasAprobadas.toString(),
+          icon: "CheckCircle2",
+        })
+      }
+
+      if (data.cantidadMateriasDesaprobadas !== undefined) {
+        transformedStats.push({
+          name: "Materias Desaprobadas",
+          value: data.cantidadMateriasDesaprobadas.toString(),
+          icon: "XCircle",
+        })
+      }
     }
 
     return transformedStats
@@ -347,7 +490,8 @@ export default function HomePage() {
       { name: "Asistencia", value: "95%", icon: "Users" },
       { name: "Promedio General", value: "7.5", icon: "Award" },
       { name: "Deudas Pendientes", value: "2", icon: "AlertCircle" },
-      { name: "Último Pago", value: "$5000", icon: "DollarSign" },
+      { name: "Materias Aprobadas", value: "6", icon: "CheckCircle2" },
+      { name: "Materias Desaprobadas", value: "2", icon: "XCircle" },
     ]
 
     switch (user.role) {
@@ -446,7 +590,12 @@ export default function HomePage() {
                 <div className="bg-white p-6 rounded-lg shadow-sm border">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-semibold text-gray-900">{chartTitles.pie}</h2>
-                    <DollarSign className="h-5 w-5 text-blue-600" />
+                    {/* Muestro signo dolar solo si el rol es admin, sino muestro uno referido a asistencia */}
+                    {user.role === "administrativo" ? (
+                      <DollarSign className="h-5 w-5 text-blue-600" />
+                    ) : (
+                      <Users className="h-5 w-5 text-blue-600" />
+                    )}
                   </div>
                   <div className="h-64 flex justify-center">
                     <PieChartComponent data={chartData.pieChart} />
@@ -479,4 +628,3 @@ export default function HomePage() {
     </div>
   )
 }
-

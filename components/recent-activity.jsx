@@ -11,6 +11,13 @@ export function RecentActivity({ role }) {
   useEffect(() => {
     const fetchActivities = async () => {
       try {
+        // Obtener el ID del usuario del localStorage
+        const user =
+          typeof window !== "undefined"
+            ? JSON.parse(localStorage.getItem("user") || '{"role":"alumno"}')
+            : { role: "alumno" }
+        const storageId = user ? user.id_usuario : null
+
         if (role === "administrativo") {
           // Consumir el endpoint para administradores
           const response = await fetch("https://localhost:7213/actividadRecienteAdmin", {
@@ -36,8 +43,58 @@ export function RecentActivity({ role }) {
           }))
 
           setActivities(formattedActivities)
+        } else if (role === "docente" && storageId) {
+          // Consumir el endpoint para docentes
+          const response = await fetch(`https://localhost:7213/actividadRecienteDocente/${storageId}`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
+
+          if (!response.ok) {
+            throw new Error(`Error fetching activities: ${response.status}`)
+          }
+
+          const data = await response.json()
+
+          // Transformar los datos al formato esperado por el componente
+          const formattedActivities = data.map((activity, index) => ({
+            id: index + 1,
+            type: activity.tipo,
+            description: activity.descripcion,
+            time: formatTimeAgo(new Date(activity.fecha)),
+            icon: getIconForType(activity.tipo),
+          }))
+
+          setActivities(formattedActivities)
+        } else if (role === "alumno" && storageId) {
+          // Consumir el endpoint para alumnos
+          const response = await fetch(`https://localhost:7213/actividadRecienteAlumno/${storageId}`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
+
+          if (!response.ok) {
+            throw new Error(`Error fetching activities: ${response.status}`)
+          }
+
+          const data = await response.json()
+
+          // Transformar los datos al formato esperado por el componente
+          const formattedActivities = data.map((activity, index) => ({
+            id: index + 1,
+            type: activity.tipo,
+            description: activity.descripcion,
+            time: formatTimeAgo(new Date(activity.fecha)),
+            icon: getIconForType(activity.tipo),
+          }))
+
+          setActivities(formattedActivities)
         } else {
-          // Para otros roles, usar datos de fallback por ahora
+          // Para otros roles o si no hay ID, usar datos de fallback
           setActivities(getActivities())
         }
         setError(null)
@@ -245,4 +302,3 @@ export function RecentActivity({ role }) {
     </div>
   )
 }
-
