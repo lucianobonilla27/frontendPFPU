@@ -8,7 +8,6 @@ import {
   BookOpen,
   GraduationCap,
   Loader2,
-  Calendar,
   TrendingUp,
   Award,
   Clock,
@@ -22,7 +21,7 @@ import {
 import { BarChart } from "../components/bar-chart"
 import { PieChartComponent } from "../components/pie-chart"
 import { RecentActivity } from "../components/recent-activity"
-import { UpcomingEvents } from "../components/upcoming-events"
+import { ModernClock } from "../components/modern-clock"
 
 export default function HomePage() {
   const [stats, setStats] = useState([])
@@ -616,10 +615,12 @@ export default function HomePage() {
 
               <div className="bg-white p-6 rounded-lg shadow-sm border">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900">Próximos Eventos</h2>
-                  <Calendar className="h-5 w-5 text-blue-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">Reloj</h2>
+                  <Clock className="h-5 w-5 text-blue-600" />
                 </div>
-                <UpcomingEvents role={user.role} />
+                <div className="h-64">
+                  <ModernClock />
+                </div>
               </div>
             </div>
           </>
