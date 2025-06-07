@@ -93,10 +93,11 @@ export default function GradesManagement() {
   })
 
   const trimesters = [
-    { value: 0, label: "Recuperatorio" },
     { value: 1, label: "Primer Trimestre" },
     { value: 2, label: "Segundo Trimestre" },
     { value: 3, label: "Tercer Trimestre" },
+    { value: 0, label: "Recuperatorio" }
+
   ]
 
   // Obtener el ID del docente actual desde el contexto de autenticación
